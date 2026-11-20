@@ -28,16 +28,18 @@
 
 ## Claude Code で使う
 
-スキルのフォルダを `~/.claude/skills/` へシンボリックリンクで繋ぐ。コピーではないので、このリポジトリを修正すればすぐ反映される。
+リポジトリを `~/Develop/work-document-write` にクローンし、スキルのフォルダを `~/.claude/skills/` へシンボリックリンクで繋ぐ。コピーではないので、このリポジトリを修正すればすぐ反映される。
 
 ```bash
-for s in chat-reply ja-writing-style explain-before-shorten doc-writing review-before-delivery excel-figure; do ln -s ~/Develop/excel-write/skills/$s ~/.claude/skills/$s; done
+gh repo clone SoraUmi134/work-document-write ~/Develop/work-document-write
+```
+
+```bash
+for s in chat-reply ja-writing-style explain-before-shorten doc-writing review-before-delivery excel-figure; do ln -s ~/Develop/work-document-write/skills/$s ~/.claude/skills/$s; done
 ```
 
 チャットの返答で毎回使われるよう、`~/.claude/rules/language.md` などの常に読まれるルールに、chat-reply を参照する 1 行を置く。
 チェックを自動で実行する hook の設定は、`skills/review-before-delivery/SKILL.md` の最後にある。
-
-手元のフォルダ名は、旧名の `~/Develop/excel-write` のまま使っている（hook とリンクがこのパスを参照しているため）。
 
 ## 要る物
 

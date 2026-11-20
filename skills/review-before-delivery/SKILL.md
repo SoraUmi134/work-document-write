@@ -12,10 +12,10 @@ description: 人に渡す図（Excel の説明図など）や文書を、渡す�
 
 1. **機械の点検を通す。** 見つかった物は全部直す（人の元の文など、わざと残す物は理由を名前に書いて除く）。
    ```bash
-   python3 ~/Develop/excel-write/skills/excel-figure/scripts/check_figure.py 図.xlsx
+   python3 ~/Develop/work-document-write/skills/excel-figure/scripts/check_figure.py 図.xlsx
    ```
    ```bash
-   python3 ~/Develop/excel-write/skills/review-before-delivery/scripts/check_text.py 文書.md
+   python3 ~/Develop/work-document-write/skills/review-before-delivery/scripts/check_text.py 文書.md
    ```
    作業場には hook を入れてある。xlsx を書き出したときと Markdown を書いたときに自動で同じ点検が走り、問題があれば知らせてくる。知らせが来たら、直すまで先へ進まない。
 2. **Excel で見る。** 確認用の写しを別の名前で開き、拡大して、折り返し・はみ出し・重なりを見る（excel-figure の skill の「確かめ方」）。機械の見積もりは近似なので、最後は実物で見る。
@@ -55,7 +55,7 @@ description: 人に渡す図（Excel の説明図など）や文書を、渡す�
 1. 指摘の種類を一言で名付け、上の「いつも見る所」に足す。
 2. 機械で拾えるなら、`check_figure.py` か `check_text.py` に検査を足す。足したら、指摘を受けた版（控え）に当てて、その問題を本当に拾えるか確かめる。
 3. 自分で作った言い方を指摘されたら、`banned_words.txt` に、その言い方と代わりの言い方を足す。
-4. excel-write にコミットして push する。
+4. work-document-write にコミットして push する。
 
 ## 道具
 
@@ -74,7 +74,7 @@ hook の入れ方（作業場の `.claude/settings.json`）:
     "PostToolUse": [
       { "matcher": "Write|Edit|Bash",
         "hooks": [ { "type": "command",
-                     "command": "python3 -B ~/Develop/excel-write/skills/review-before-delivery/scripts/check_after_tool.py" } ] }
+                     "command": "python3 -B ~/Develop/work-document-write/skills/review-before-delivery/scripts/check_after_tool.py" } ] }
     ]
   }
 }
