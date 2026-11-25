@@ -28,6 +28,7 @@
 | `skills/ui-copy-ja/references/scripts/copy-diff.sh` | ブランチで足した、人に見せる日本語の行を一覧にする。点検済みの記録も付ける |
 | `skills/ui-copy-ja/references/scripts/copy-guard.sh` | PR を出す前に、足した日本語が点検済みかを確認する hook（任意） |
 | `examples/gsd-patterns/` | Excel の図を描いた実例のスクリプト |
+| `claude-md/user-report.md` | `~/.claude/CLAUDE.md` に入れている「ユーザーへの報告」の節 |
 
 ## Claude Code で使う
 
@@ -42,6 +43,14 @@ for s in chat-reply ja-writing-style explain-before-shorten doc-writing review-b
 ```
 
 チャットの返答で毎回使われるよう、`~/.claude/rules/language.md` などの常に読まれるルールに、chat-reply を参照する 1 行を置く。
+
+報告の形（冒頭に現在地、判断の依頼は 1 回に 1 問、手順は 1 手ずつ、など）は、毎回読まれるよう `~/.claude/CLAUDE.md` に直接書いている。本文は `claude-md/user-report.md`。新しい Mac では末尾に足す。
+
+```bash
+printf '\n' >> ~/.claude/CLAUDE.md && cat ~/Develop/work-document-write/claude-md/user-report.md >> ~/.claude/CLAUDE.md
+```
+
+直すときは、`claude-md/user-report.md` と `~/.claude/CLAUDE.md` の両方を同じ内容にする。
 チェックを自動で実行する hook の設定は、`skills/review-before-delivery/SKILL.md` の最後にある。
 ### PR の前に文言の点検を確認する hook（ui-copy-ja）
 
