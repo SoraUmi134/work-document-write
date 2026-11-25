@@ -186,12 +186,14 @@ def overlap_ratio(a, b):
 
 
 def load_banned():
+    """禁止語の一覧。「re:」で始まる行は正規表現（check_text.py と同じ形式）。(表示する語, 正規表現 or None) を返す。"""
     words = []
     if os.path.exists(BANNED):
         for line in open(BANNED, encoding="utf-8"):
             line = line.split("#", 1)[0].strip()
             if line:
-                words.append(line.split("\t")[0].strip())
+                wd = line.split("\t")[0].strip()
+                words.append((wd, re.compile(wd[3:]) if wd.startswith("re:") else None))
     return words
 
 
@@ -216,9 +218,10 @@ def check(shapes, only_group=None):
             need = need_height(s)
             if need > s.h + 3:
                 add("あふれ", s, f"高さ {s.h:.0f}pt に対し {need:.0f}pt 要る: 「{s.text[:30]}…」")
-        for wd in banned:
-            if wd in s.text:
-                add("禁止語", s, f"「{wd}」を使っている: 「{s.text[:40]}…」")
+        for wd, pat in banned:
+            hit = pat.search(s.text).group(0) if pat and pat.search(s.text) else (wd if not pat and wd in s.text else None)
+            if hit:
+                add("禁止語", s, f"「{hit}」を使っている: 「{s.text[:40]}…」")
         limit = LONG_PARA_CALLOUT if s.prst.startswith("borderCallout") else LONG_PARA
         for runs in ([] if "人の文" in s.name else s.paras):
             para = "".join(t for t, _, _ in runs)
