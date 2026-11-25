@@ -42,7 +42,33 @@ for s in chat-reply ja-writing-style explain-before-shorten doc-writing review-b
 ```
 
 チャットの返答で毎回使われるよう、`~/.claude/rules/language.md` などの常に読まれるルールに、chat-reply を参照する 1 行を置く。
-チェックを自動で実行する hook の設定は、`skills/review-before-delivery/SKILL.md` の最後にある。PR の前に文言の点検を確認する hook の設定は、`skills/ui-copy-ja/SKILL.md` の「点検を hook で担保する」にある。
+チェックを自動で実行する hook の設定は、`skills/review-before-delivery/SKILL.md` の最後にある。
+### PR の前に文言の点検を確認する hook（ui-copy-ja）
+
+人に見せる日本語を足したブランチで、点検しないまま `gh pr create` / `gh pr ready` を実行すると止める。
+足した日本語が無いとき、点検済みのとき、git リポジトリでないときは止めない。仕組みと止まったときの手順は `skills/ui-copy-ja/SKILL.md` の「点検を hook で担保する」にある。
+
+どのプロジェクトでも効くよう、ユーザーの設定（`~/.claude/settings.json`）の `hooks.PreToolUse` に、次の 1 件を足す。ほかの hook はそのまま残す。
+
+```json
+{
+  "matcher": "Bash|mcp__github__create_pull_request",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "bash ~/.claude/skills/ui-copy-ja/references/scripts/copy-guard.sh"
+    }
+  ]
+}
+```
+
+jq で足すときは、控えを取ってから実行する（要る物: jq、perl、shasum）。
+
+```bash
+cp ~/.claude/settings.json ~/.claude/settings.json.bak && jq '.hooks.PreToolUse += [{"matcher":"Bash|mcp__github__create_pull_request","hooks":[{"type":"command","command":"bash ~/.claude/skills/ui-copy-ja/references/scripts/copy-guard.sh"}]}]' ~/.claude/settings.json.bak > ~/.claude/settings.json
+```
+
+`command` のパスは、`~/.claude/skills/ui-copy-ja` のシンボリックリンクを通す。hook は自分と同じフォルダの `copy-diff.sh` を呼ぶので、スクリプトを別の場所へコピーしない。登録は新しいセッションから効く。
 
 ## 要る物
 
