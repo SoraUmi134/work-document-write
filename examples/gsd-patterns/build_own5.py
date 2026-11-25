@@ -477,7 +477,7 @@ def figD(Y0):
                 "framework-selector・ai-researcher・domain-researcher・eval-planner・pattern-mapper・dom-verifier・"
                 "behavior-verifier・debug-session-manager など）は、指示を読んでも子を起動しなかった。"
                 "security-auditor・nyquist-auditor は tools の欄がリストの形だが Skill を持ち、CLAUDE.md の指示で子を起動した。",
-                "道具は Capability で追加できないので、この方法は使えない。"),
+                T_["D_tools_red"]),
              ns.cy, ["skills123"]),
     ])
     pb = place_problems(d, items, MB - 16)
@@ -559,9 +559,10 @@ def role_table(Y0):
     note(d, 34, Y0 + 40, 1450,
          ["○ = 実機で置き換わった（D は子を起動できた）。△ = 条件つき、または毎回ではない。✕ = 実機でできなかった。",
           "D は置き換えではなく、既定のロールの中からの委任。数は「子を起動できた回 / ロールが起動された回」。",
-          "右端の列は、検証で使った案件のコピー（trials-v2/own-<名前>）。根拠を確かめるときに、その会話の記録を開く。"],
+          "右端の列は、検証で使った案件のコピー（trials-v2/own-<名前>）。根拠を確かめるときに、その会話の記録を開く。",
+          "Claude Code の hook で差し替える方法（表4 の F）はロールに依らず効くので、この表の列にはしていない。"],
          size=11, name="表の見方")
-    x0, y = 34, Y0 + 104
+    x0, y = 34, Y0 + 120
     with d.group("表1"):
         y = table_head(d, x0, y, ROLE_COLS)
         for row in ROLE_ROWS:
@@ -615,6 +616,34 @@ def fire_table(Y0):
     return d, y + 20
 
 
+# ---- 表 3・表 4: 文字だけの表（列と行は own5_data が入れる） --------------------------------------------
+# 1 つの表 = dict(tag, name, title, notes, cols=[(見出し, 幅)], rows=[[(色, 文), ...]]). 文の色は INK/OK_GREEN/GOLD/RED/SUB。
+TEXT_TABLES = []
+
+
+def text_table(spec, Y0):
+    d = Drawing(tag=spec["tag"], name=spec["name"])
+    d.text(26, Y0, 1500, 40, spec["title"], size=24, font=None, color="000000", wrap="none", name="見出し")
+    y = Y0 + 44
+    if spec.get("notes"):
+        note(d, 34, y, 1450, spec["notes"], size=11, name="表の見方")
+        y += 16 * len(spec["notes"]) + 18
+    x0 = 34
+    with d.group(spec["name"]):
+        y = table_head(d, x0, y, spec["cols"], size=spec.get("head_size", 11))
+        for row in spec["rows"]:
+            # 空のセルは "" にする（空の list だと txBody に段落が無くなり、Excel が「問題が見つかった」と修復を求める）
+            cells = [(c, cell(t) if t else "") for c, t in row]
+            rh = max(32, max(need_h(t, w, 9.5, UD, (6, 2, 4, 2)) for (_, t), (_, w) in zip(cells, spec["cols"]) if t) + 6)
+            cx = x0
+            for (color, t), (_, w) in zip(cells, spec["cols"]):
+                d.shape(cx, y, w, rh, "rect", fill="FFFFFF", line="A6A6A6", lw=0.75, text=t, size=9.5, font=UD,
+                        color=color, align="l", anchor="ctr", ins=(6, 2, 4, 2), name="表のセル")
+                cx += w
+            y += rh
+    return d, y + 20
+
+
 CONCLUSION = []
 HEAD_CONCLUSION = []
 VERIFY_NOTE = []
@@ -629,23 +658,27 @@ def conclusion(Y0):
     return d, Y0 + h + 20
 
 
+TERMS = ["GSD: AI に計画書を書かせてから実装させるツール。メイン: 人と話す AI。",
+         "サブエージェント（ロール）: メインが起動して作業を任せる別の AI。既定のロールは gsd-○○ という名前で 36 種類ある。",
+         "Capability: GSD に処理を追加する正式な部品。",
+         "ループポイント: Capability の処理が差し込まれる場所（plan:pre など）。",
+         "step: ループポイントでメインに起動させるサブエージェントか skill。contribution: ロールやメインへの依頼文に追記する文。",
+         "fork skill: 呼ぶと、指定のサブエージェントを子として起動する skill。",
+         "agent_skills: GSD の設定で、ロールに skill を渡す欄。",
+         "setup: 案件ごとに 1 回、キットの部品を .claude/ などに配置する作業。",
+         "autonomous: /gsd-autonomous。フェーズごとに相談→計画→実装を、人に聞かずにメインが順に進めるコマンド。",
+         "--auto: 相談のコマンドに付けると、そのフェーズの計画→実装まで自動でつなぐ。",
+         "hook: Claude Code の仕組み。道具の呼び出しの前後やサブエージェントの起動時に、決めたスクリプトを動かす。"]
+
+
 def head():
     d = Drawing(tag="own5head", name="頭書き")
     d.text(26, 0, 1500, 44, "GSD で自作のサブエージェントを起動する 5 つの方法 ― GSD 1.23.0 の実機で確認した結果", size=26,
            font=None, color="000000", wrap="none", name="見出し")
-    note(d, 26, 46, 1500, HEAD_CONCLUSION, size=12, name="見出し（結論）")
-    note(d, 26, 112, 1500,
-         ["GSD: AI に計画書を書かせてから実装させるツール。メイン: 人と話す AI。",
-          "サブエージェント（ロール）: メインが起動して作業を任せる別の AI。既定のロールは gsd-○○ という名前で 36 種類ある。",
-          "Capability: GSD に処理を追加する正式な部品。",
-          "ループポイント: Capability の処理が差し込まれる場所（plan:pre など）。",
-          "step: ループポイントでメインに起動させるサブエージェントか skill。contribution: ロールやメインへの依頼文に追記する文。",
-          "fork skill: 呼ぶと、指定のサブエージェントを子として起動する skill。",
-          "agent_skills: GSD の設定で、ロールに skill を渡す欄。",
-          "setup: 案件ごとに 1 回、キットの部品を .claude/ などに配置する作業。"],
-         size=10.5, name="見出し（用語）")
-    note(d, 26, 262, 1500, VERIFY_NOTE, size=10.5, color="595959", name="見出し（検証の方法）")
-    return d
+    y = note(d, 26, 46, 1500, HEAD_CONCLUSION, size=12, name="見出し（結論）") + 10
+    y = note(d, 26, y, 1500, TERMS, size=10.5, name="見出し（用語）") + 10
+    y = note(d, 26, y, 1500, VERIFY_NOTE, size=10.5, color="595959", name="見出し（検証の方法）")
+    return d, y + 30
 
 
 # ---- 書き込み -------------------------------------------------------------------------------
@@ -672,15 +705,16 @@ def build(src, dst):
     grid = measure_grid(src)
     tmp = dst + ".tmp.xlsx"
     strip_all(src, tmp, "自作サブエージェントの起動方法")
-    parts = [head()]
-    y = 320
+    hd, y = head()
+    parts = [hd]
     spans = []
     for fn in (figA, lambda Y: fig_step(Y, "b"), lambda Y: fig_step(Y, "c"), figD, figE):
         d, b = fn(y)
         parts.append(d)
         spans.append((y, b))
         y = b + 50
-    for fn in (role_table, fire_table, conclusion):
+    tails = [role_table, fire_table] + [(lambda Y, s=s: text_table(s, Y)) for s in TEXT_TABLES] + [conclusion]
+    for fn in tails:
         d, b = fn(y)
         parts.append(d)
         spans.append((y, b))
@@ -702,5 +736,6 @@ if __name__ == "__main__":
     own5_data.fill(sys.modules[__name__])
     spans = build(sys.argv[1], sys.argv[2])
     print(f"書きました: {sys.argv[2]}")
-    for n, (a, b) in zip(["図A", "図B", "図C", "図D", "図E", "表1", "表2", "結論"], spans):
+    names = ["図A", "図B", "図C", "図D", "図E", "表1", "表2"] + [s["name"] for s in TEXT_TABLES] + ["結論"]
+    for n, (a, b) in zip(names, spans):
         print(f"  {n}: y {a:.0f}〜{b:.0f}")
