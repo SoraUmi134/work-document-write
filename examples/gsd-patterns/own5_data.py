@@ -84,10 +84,10 @@ def fill(m):
         ("gsd-security-auditor・gsd-nyquist-auditor・gsd-ui-auditor（実装後の監査）",
          (X, "✕"),
          (G, "△ execute-phase の中では、各キーを false ＋ verify:post で置き換わった。/gsd-secure-phase・/gsd-validate-phase・/gsd-ui-review を単独で実行するとポイントが無い。"),
-         (G, "△ ui-auditor は CLAUDE.md 2/2・agent_skills 2/3。security・nyquist は Skill を持つが未検証"
-             "（検証のスクリプトが tools の欄のリストの形を読み落とし、この 2 体に指示と skill を置いていなかった）。"),
+         (G, "△ ui-auditor は CLAUDE.md 2/2・agent_skills 2/3。security・nyquist は CLAUDE.md 1/1・agent_skills 0/1"
+             "（/gsd-secure-phase・/gsd-validate-phase では agent_skills が依頼文に入らない）。"),
          (G, "△ verify:post に文は入る（execute-phase の最後で own-e-verify-post が起動された）。置き換え: " + E_EXEC_SHORT + "。"),
-         "R-exec-b・R-exec-c・L1-sec2・L1-val2・L1-uireview・E-rep-exec"),
+         "R-exec-b・R-exec-c・L1-sec2・L1-val2・L1-uireview・E-rep-exec・D-sec3・D-val3・D2-sec3・D2-val3"),
         ("gsd-debugger・gsd-debug-session-manager（不具合の調査）",
          (X, "✕"),
          (X, "✕ verify-work の不具合の調査・/gsd-debug の場所にはポイントが無い。"),

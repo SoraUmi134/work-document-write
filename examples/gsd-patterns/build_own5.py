@@ -419,7 +419,7 @@ def fig_step(Y0, mode):
 def figD(Y0):
     d = Drawing(tag="own5D", name="図D 既定のロールから委任")
     T, main, MB = skeleton(d, Y0, "図D　既定のサブエージェントが、fork skill で自作の子を起動する（委任）", "追加・委任だけ", GOLD,
-                           "Skill を持つ 22 ロールのうち検証した 20 ロールは子を起動できた。既定のロールは必ず動き、指示が渡らない経路・従わない回もある")
+                           "Skill を持つ 22 ロールは子を起動できた。既定のロールは必ず動き、指示が渡らない経路・従わない回もある")
     sd = setup_doc(d, MB, [SETUP_HEAD,
                            "・.claude/agents/own-d-○○.md（自作の子）",
                            "・.claude/skills/ownd-○○/SKILL.md",
@@ -466,7 +466,7 @@ def figD(Y0):
              sd.y + 20, []),
         item([12], [True], "問題点 12　agent_skills が渡らないコマンドがある",
              PP("agent_skills の指示が依頼文に入らなかった: new-project（defaults.json に書いても config に引き継がれない）・quick・"
-                "verify-work・code-review --fix・debug・ingest-docs。案件の CLAUDE.md なら全コマンドで渡った。",
+                "verify-work・code-review --fix・debug・ingest-docs・secure-phase・validate-phase。案件の CLAUDE.md なら全コマンドで渡った。",
                 "agent_skills だけに頼ると、指示が渡らないロールがある。"),
              pr.y + 14, ["skills123"]),
         item([11], [True], "問題点 11　指示に従わない回がある",
@@ -476,7 +476,7 @@ def figD(Y0):
              PP("36 ロールのうち Skill を持つのは 22 ロール。持たない 14 ロール（doc-verifier・doc-classifier・doc-synthesizer・"
                 "framework-selector・ai-researcher・domain-researcher・eval-planner・pattern-mapper・dom-verifier・"
                 "behavior-verifier・debug-session-manager など）は、指示を読んでも子を起動しなかった。"
-                "security-auditor・nyquist-auditor は Skill を持つが、検証のスクリプトの読み落としで D を試していない。",
+                "security-auditor・nyquist-auditor は tools の欄がリストの形だが Skill を持ち、CLAUDE.md の指示で子を起動した。",
                 "道具は Capability で追加できないので、この方法は使えない。"),
              ns.cy, ["skills123"]),
     ])
