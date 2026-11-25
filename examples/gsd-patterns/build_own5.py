@@ -419,7 +419,7 @@ def fig_step(Y0, mode):
 def figD(Y0):
     d = Drawing(tag="own5D", name="図D 既定のロールから委任")
     T, main, MB = skeleton(d, Y0, "図D　既定のサブエージェントが、fork skill で自作の子を起動する（委任）", "追加・委任だけ", GOLD,
-                           "Skill を持つ 20 ロールは子を起動できた。既定のロールは必ず動き、指示が渡らない経路・従わない回もある")
+                           "Skill を持つ 22 ロールのうち検証した 20 ロールは子を起動できた。既定のロールは必ず動き、指示が渡らない経路・従わない回もある")
     sd = setup_doc(d, MB, [SETUP_HEAD,
                            "・.claude/agents/own-d-○○.md（自作の子）",
                            "・.claude/skills/ownd-○○/SKILL.md",
@@ -449,8 +449,8 @@ def figD(Y0):
         lows.append(yy)
         spawn_tree(d, x + 9, MB + 30, parents)
     x, w = col_x(3)
-    ns = cannot_box(d, x + 200, y0, w - 204, ["Skill の道具が無い 16 ロールは、", "子を起動できない",
-                                              "（例: pattern-mapper・security-auditor・", "nyquist-auditor・dom-verifier）"], 10)
+    ns = cannot_box(d, x + 200, y0, w - 204, ["Skill の道具が無い 14 ロールは、", "子を起動できない",
+                                              "（例: pattern-mapper・dom-verifier・", "doc-verifier・debug-session-manager）"], 10)
     pc, dbg, pr = first["gsd-plan-checker"], first["gsd-debugger"], first["gsd-project-researcher"]
     badge(d, pc.x + pc.w - 4, pc.y + 4, 11, gold=True)
     badge(d, dbg.x + dbg.w - 4, dbg.y + 4, 12, gold=True)
@@ -473,9 +473,10 @@ def figD(Y0):
              PP(T_["D_comply"], "決まりを子に任せる形は、毎回は効かない。"),
              pc.cy, []),
         item([10], [False], "問題点 10　Skill の道具が無いロールは、子を起動できない",
-             PP("36 ロールのうち Skill を持つのは 20 ロール。持たないロール（doc-verifier・doc-classifier・doc-synthesizer・"
-                "framework-selector・ai-researcher・domain-researcher・eval-planner・pattern-mapper・security-auditor・"
-                "nyquist-auditor・dom-verifier・behavior-verifier・debug-session-manager など）は、指示を読んでも子を起動しなかった。",
+             PP("36 ロールのうち Skill を持つのは 22 ロール。持たない 14 ロール（doc-verifier・doc-classifier・doc-synthesizer・"
+                "framework-selector・ai-researcher・domain-researcher・eval-planner・pattern-mapper・dom-verifier・"
+                "behavior-verifier・debug-session-manager など）は、指示を読んでも子を起動しなかった。"
+                "security-auditor・nyquist-auditor は Skill を持つが、検証のスクリプトの読み落としで D を試していない。",
                 "道具は Capability で追加できないので、この方法は使えない。"),
              ns.cy, ["skills123"]),
     ])

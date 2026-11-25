@@ -84,7 +84,8 @@ def fill(m):
         ("gsd-security-auditor・gsd-nyquist-auditor・gsd-ui-auditor（実装後の監査）",
          (X, "✕"),
          (G, "△ execute-phase の中では、各キーを false ＋ verify:post で置き換わった。/gsd-secure-phase・/gsd-validate-phase・/gsd-ui-review を単独で実行するとポイントが無い。"),
-         (G, "△ ui-auditor は CLAUDE.md 2/2・agent_skills 2/3。security・nyquist は Skill が無く ✕。"),
+         (G, "△ ui-auditor は CLAUDE.md 2/2・agent_skills 2/3。security・nyquist は Skill を持つが未検証"
+             "（検証のスクリプトが tools の欄のリストの形を読み落とし、この 2 体に指示と skill を置いていなかった）。"),
          (G, "△ verify:post に文は入る（execute-phase の最後で own-e-verify-post が起動された）。置き換え: " + E_EXEC_SHORT + "。"),
          "R-exec-b・R-exec-c・L1-sec2・L1-val2・L1-uireview・E-rep-exec"),
         ("gsd-debugger・gsd-debug-session-manager（不具合の調査）",
@@ -165,7 +166,7 @@ def fill(m):
         [("  ", {}), ("debugger と、修正の計画の planner・plan-checker（E。verify-work のメイン宛ての文）。", {})],
         [("・ 置き換わらなかった: ", {"bold": True}), ("planner と executor のオフ。ポイントの無いコマンドのロール。", {})],
         [("  ", {}), ("（new-project・ui-phase・code-review --fix・debug・map-codebase など）", {})],
-        [("  ", {}), ("これらは D（既定のロールが子に任せる）しか無く、Skill の無い 16 ロールは D も使えない。", {})],
+        [("  ", {}), ("これらは D（既定のロールが子に任せる）しか無く、Skill の無い 14 ロールは D も使えない。", {})],
         [("・ 毎回ではない: ", {"bold": True}), ("D と E は、サブエージェントやメインが指示に従うかしだい。", {})],
         [("  ", {}), ("例: plan-checker は 6 回中 3 回。B・C の step も、止める力は無い（advisory）。", {})],
     ]
