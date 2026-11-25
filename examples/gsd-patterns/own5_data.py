@@ -2,7 +2,7 @@
 数は「子を起動できた回 / ロールが起動された回」。コピーの名前は trials-v2/own-<名前>。
 """
 
-# ---- 結果待ちだった所（結果が出たら、ここを直す） ----
+# ---- 結果待ちだった所（結果が出たら、ここを修正する） ----
 A7_FACT = ("案件の CLAUDE.md で頼んだ回（A7）は、quick の計画書に agent_hint: own-a-executor が書かれた。"
            "それでも起動されたのは gsd-executor だった（仕様の「quick は対象外」と一致）。")
 E_EXEC_SUB = "execute-phase の最後の確認（verify:post）でも起動された（追加）"
@@ -180,7 +180,7 @@ def fill(m):
         [("・ 毎回ではない: ", {"bold": True}), ("D と E は、サブエージェントやメインが指示に従うかしだい。", {})],
         [("  ", {}), ("例: plan-checker は 6 回中 3 回。B・C の step も止める力は無い（止めるのは Capability の gates）。", {})],
         [("・ GSD の外の方法（表4）: ", {"bold": True}), ("Claude Code の hook で起動を書き換える F は、全ロールを確実に置き換えられる。", {})],
-        [("  ", {}), ("オフにできない planner・executor も対象。SubagentStart の hook で指示を差し込む D3 も確実。", {})],
+        [("  ", {}), ("オフにできない planner・executor も対象。SubagentStart の hook で指示を挿入する D3 も確実。", {})],
         [("  ", {}), ("Skill の無いロールは、config の agent_tools で道具を足せる。", {})],
         [("・ autonomous（表3）: ", {"bold": True}), ("自作を入れても止まらずに進み、計画・実装の中のポイント・委任は単独のコマンドと同じに起きた。", {})],
         [("  ", {}), ("相談（smart discuss）だけはポイントの処理が無く、discuss:pre・post の自作は起動されない。", {})],
@@ -198,7 +198,7 @@ def auto_table(m):
             "/gsd-autonomous は、フェーズごとに 相談（smart discuss）→ UI の設計書 → 計画 → 実装 → レビュー を進める。",
             "計画以降はメインが Skill で呼ぶ。人に聞くのは判断が要る所だけ。検証: フェーズ 2（画面）を --only 2 で実行（8 本）。",
             "--auto は /gsd-discuss-phase 2 --auto で、相談→計画→実装をつなぐ（3 本）。",
-            "○（緑）= 単独のコマンドと同じに起動された。△（金）= 一部だけ。空欄 = その組は試していない。",
+            "○（緑）= 単独のコマンドと同じに起動された。△（金）= 一部だけ。空欄 = その組は検証していない。",
             "コピー = 検証に使った案件のコピー（trials-v2/own-<名前>）。",
         ],
         "cols": [("方法", 150), ("/gsd-autonomous --only 2 で起動された所", 420), ("単独のコマンドとの違い・気づいたこと", 420),
@@ -222,12 +222,12 @@ def auto_table(m):
              (I, "autonomous 自身は agent_skills を渡さず、呼ぶ plan-phase・execute-phase が渡す（手順書に明記）。渡る範囲は単独のコマンドと同じ。"),
              (N, ""), (N, "AU-d")],
             [(I, "E メイン宛ての文"),
-             (G, "△ verify:post（execute-phase の最後）の 1 か所だけ起動。discuss:pre・post の文は、smart discuss が処理を読まないので届かなかった。"),
+             (G, "△ verify:post（execute-phase の最後）の 1 か所だけ起動。discuss:pre・post の文は、smart discuss が処理を読まないので渡らなかった。"),
              (I, "単独の /gsd-discuss-phase では discuss:pre・post で起動されたが、autonomous では起きない。"),
              (O, CH_E), (N, "AU-e・CH-e")],
             [(I, "置き換え（B・C。既定を config でオフ）"), (O, AU_R), (I, AU_R_NOTE), (N, ""), (N, "AU-rb・AU-rc")],
             [(I, "F・G・D3（Claude Code の hook・同名の上書き）"),
-             (N, "autonomous では試していない。コマンドに依らない仕組み（Agent の呼び出し・サブエージェントの起動のたびに効く）なので、単独のコマンドと同じに効く見込み。"),
+             (N, "autonomous では検証していない。コマンドに依らない仕組み（Agent の呼び出し・サブエージェントの起動のたびに効く）なので、単独のコマンドと同じに効く想定。"),
              (N, ""), (N, ""), (N, "")],
             [(I, "autonomous そのものの動き（共通）"),
              (I, "8 本とも、フェーズ 2 の実装と自動の検証まで止まらずに進んだ。人の確認（UAT）が残る所で STATE.md に記録して止まった（仕様どおり）。自作を入れたことで止まった回は無い。"),
@@ -237,7 +237,7 @@ def auto_table(m):
     }
 
 
-# 結果（autonomous・--auto の試し。コピーは AU-*・CH-*）
+# 結果（autonomous・--auto の検証。コピーは AU-*・CH-*）
 AU_A = "○ planner への指示（Capability の contribution）で計画書に agent_hint が書かれ、execute-phase で own-a-executor が起動された（gsd-executor は 0 回）。"
 AU_A_NOTE = "単独の /gsd-execute-phase と同じ。autonomous は execute-phase を Skill で呼ぶだけなので、agent_hint の振り分けはそのまま効く。"
 AU_R = "○ 9 ロール（phase-researcher・pattern-mapper・ui-researcher・plan-checker・code-reviewer・verifier・3 つの監査）が自作に置き換わり、既定は 1 回も起動されなかった。"
@@ -248,42 +248,42 @@ CH_D2 = "○ 8 ロール全部が子を起動した。"
 CH_NOTE = "--auto は discuss-phase が plan-phase を、plan-phase が execute-phase を Skill で呼ぶ形。3 本とも実装と自動の検証まで進み、人の確認で止まった。"
 
 
-# ---- 表4: 検討したほかの方法と、見直しで分かった考慮漏れ ----
+# ---- 表4: 検討したほかの方法と、見修正で分かった考慮漏れ ----
 def other_table(m):
     O, G, X, N, I = m.OK_GREEN, m.GOLD, m.RED, m.SUB, m.INK
     return {
         "tag": "own5T4", "name": "表4 ほかの方法",
-        "title": "表4　GSD の外の方法と、見直しで分かった考慮漏れ（GSD 1.23.0・Claude Code 2.1.332）",
+        "title": "表4　GSD の外の方法と、見修正で分かった考慮漏れ（GSD 1.23.0・Claude Code 2.1.332）",
         "notes": [
             "5 つの方法（A〜E）は GSD の仕組みの中で起動する方法。",
-            "ここは、Claude Code の仕組みや GSD の設定で起動・差し替えする方法と、文書とソースの見直しで見つけた考慮漏れ。",
-            "○（緑）= 実機で確認した。△（金）= 条件つき。未検証 = 文書とソースで確かめただけ（コピーの列が空）。",
+            "ここは、Claude Code の仕組みや GSD の設定で起動・差し替えする方法と、文書とソースの見修正で見つけた考慮漏れ。",
+            "○（緑）= 実機で確認した。△（金）= 条件つき。未検証 = 文書とソースで確認ただけ（コピーの列が空）。",
             "コピー = 検証に使った案件のコピー（trials-v2/own-<名前>）。",
         ],
         "cols": [("方法・項目", 170), ("何か", 400), ("実機の結果・判断", 420), ("使うときの注意", 330), ("コピー", 130)],
         "rows": [
             [(I, "F　Claude Code の hook で起動を書き換える"),
              (I, "PreToolUse hook（Agent ツール）。GSD が gsd-○○ を起動する直前に subagent_type を自作に書き換える（updatedInput）。"),
-             (O, "○ /gsd-plan-phase 2 で gsd-planner → own-f-planner、gsd-plan-checker → own-f-plan-checker の 2 回とも置き換わった。自作は GSD の依頼文をそのまま受け取り、計画と点検は普通に完了した。"),
+             (O, "○ /gsd-plan-phase 2 で gsd-planner → own-f-planner、gsd-plan-checker → own-f-plan-checker の 2 回とも置き換わった。自作は GSD の依頼文をそのまま受け取り、計画とチェックは普通に完了した。"),
              (I, "GSD の外の仕組みなので全コマンド・全ロールに効き、オフにできない planner・executor も置き換えられる。hook は .claude/settings.json に setup で置く。Claude Code 以外の実行環境には無い。自作は GSD の約束（成果物・コミット）を守る必要がある。"),
              (N, "F-plan")],
             [(I, "G　同じ名前で上書き（影にする）"),
-             (I, ".claude/agents/gsd-○○.md を自作の中身にする。Claude Code は案件の .claude/agents をユーザーの ~/.claude/agents やプラグインより優先する。"),
-             (G, "△ gsd-plan-checker.md を自作の中身にすると、GSD は gsd-plan-checker を起動し、動いたのは自作の中身だった（印 own-g-plan-checker）。"),
-             (I, "GSD を案件に入れている（--local）と、再インストールや版上げで上書きされる。GSD が ~/.claude にあれば、案件の .claude/agents に同名を置くだけで影になる（文書で確認。実機では試していない）。"),
+             (I, ".claude/agents/gsd-○○.md を自作の内容にする。Claude Code は案件の .claude/agents をユーザーの ~/.claude/agents やプラグインより優先する。"),
+             (G, "△ gsd-plan-checker.md を自作の内容にすると、GSD は gsd-plan-checker を起動し、動いたのは自作の内容だった（印 own-g-plan-checker）。"),
+             (I, "GSD を案件に入れている（--local）と、再インストールや版上げで上書きされる。GSD が ~/.claude にあれば、案件の .claude/agents に同名を置くだけで影になる（文書で確認。実機では検証していない）。"),
              (N, "G-plan")],
-            [(I, "D3　SubagentStart の hook で指示を差し込む"),
-             (I, "Claude Code の SubagentStart hook。gsd-○○ が起動された直後に、additionalContext で「Skill で ownd-○○ を呼べ」を差し込む。方法 D の指示の 3 つ目の経路。"),
-             (O, "○ /gsd-plan-phase 2 で gsd-planner・gsd-plan-checker の 2 回とも差し込まれ、2 回とも子を起動した。"),
-             (I, "agent_skills（渡らないコマンドがある）・CLAUDE.md（メインにも読まれる）と違い、起動のたびに確実に、そのロールだけに届く。Skill を持たないロールには効かない（→ agent_tools）。"),
+            [(I, "D3　SubagentStart の hook で指示を挿入する"),
+             (I, "Claude Code の SubagentStart hook。gsd-○○ が起動された直後に、additionalContext で「Skill で ownd-○○ を呼べ」を挿入する。方法 D の指示の 3 つ目の経路。"),
+             (O, "○ /gsd-plan-phase 2 で gsd-planner・gsd-plan-checker の 2 回とも挿入され、2 回とも子を起動した。"),
+             (I, "agent_skills（渡らないコマンドがある）・CLAUDE.md（メインにも読まれる）と違い、起動のたびに確実に、そのロールだけに渡る。Skill を持たないロールには効かない（→ agent_tools）。"),
              (N, "D3-plan")],
-            [(I, "agent_tools　道具を足す（問題点 10 の手当て）"),
+            [(I, "agent_tools　道具を追加する（問題点 10 の対策）"),
              (I, "config.json の agent_tools に {\"gsd-○○\": [\"Skill\"]} と書き、GSD を再インストールする。そのロールの tools に足される。Capability からは足せない。"),
              (O, "○ pattern-mapper・dom-verifier・debug-session-manager・doc-verifier の tools に Skill が足された。Skill の無かった debug-session-manager（/gsd-debug）と doc-verifier（/gsd-docs-update）が、CLAUDE.md の指示で子を起動した。"),
              (I, "再インストールが要る（setup で行う）。これで「Skill の無い 14 ロールは D が使えない」は解ける。tools がリストの形のロールにも足される。"),
              (N, "AT-test・AT-debug・AT-docs")],
             [(I, "Capability の gates"),
-             (I, "ループポイントで点検して止める部品。check は query か predicate（スクリプトの判定）か agentVerdict（AI の判定）。"),
+             (I, "ループポイントでチェックして止める部品。check は query か predicate（スクリプトの判定）か agentVerdict（AI の判定）。"),
              (N, "未検証。検証のコードでは、query・predicate の gate は blocking: true で止められる。agentVerdict は blocking: false に限られる。autonomous は plan:pre の gate を実行しない。"),
              (I, "step は助言だけで止める力が無い。止めたいときは gates を使う。自作のサブエージェントの判定では止められず、スクリプトの判定なら止められる。"),
              (N, "")],
@@ -295,11 +295,11 @@ def other_table(m):
             [(I, "外部のコマンドを差す設定"),
              (I, "workflow.code_review_command（/gsd-ship で diff を標準入力に渡す）、workflow.plan_bounce_script（計画書を渡し、非 0 で止める）。"),
              (N, "未検証。サブエージェントではなく、外部のスクリプト・CLI を呼ぶ口。"),
-             (I, "キットが持つ自動の点検のスクリプトを、GSD の流れに差す口の候補。"),
+             (I, "キットが持つ自動チェックのスクリプトを、GSD の流れに差す口の候補。"),
              (N, "")],
-            [(I, "自作のコマンド（手順書の写し）"),
-             (I, "GSD の手順書の写しを .claude/commands か skills に置き、Agent の subagent_type を自作に変える。"),
-             (N, "未検証。確実に動くが、GSD の版上げのたびに写しを追従させる手間がある。人が打つコマンドも変わる。"),
+            [(I, "自作のコマンド（手順書のコピー）"),
+             (I, "GSD の手順書のコピーを .claude/commands か skills に置き、Agent の subagent_type を自作に変える。"),
+             (N, "未検証。確実に動くが、GSD の版上げのたびにコピーを追従させる手間がある。人が打つコマンドも変わる。"),
              (I, "F（hook）の方が、手順書を写さずに同じことができる。"),
              (N, "")],
             [(I, "入れ子の Agent"),
@@ -315,7 +315,7 @@ def other_table(m):
             [(I, "検証の方法の注記（モデル）"),
              (I, "A〜E の約 80 本は、サブエージェントに CLAUDE_CODE_SUBAGENT_MODEL=sonnet を付けていたが、全部が Sonnet ではなかった。"),
              (I, "GSD が Agent() に model= を渡すロールはそちらが優先された（planner は Opus、plan-checker・ui-auditor は Haiku、ほかは Sonnet）。会話の記録で確認。"),
-             (I, "表3・表4 の試しは CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1 で全部 Opus 5.5。"),
+             (I, "表3・表4 の検証は CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1 で全部 Opus 5.5。"),
              (N, "")],
         ],
     }
