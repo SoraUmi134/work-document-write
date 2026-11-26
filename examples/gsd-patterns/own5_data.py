@@ -11,7 +11,8 @@ E_EXEC_FACT = ("execute-phase の verify:post の文で gsd-ui-auditor の置き
 E_EXEC_SHORT = "ui-auditor は own-e-ui-auditor に置き換わった（UI-REVIEW.md は書かれなかった）"
 ADVISOR = {"bc": ("BF8F00", "△ 通常・advisor モードでは discuss:pre・post で自作が起動された。advisor-researcher をオフにするキーは無い"
                          "（USER-PROFILE.md が無いと起動されない）。assumptions モードはポイント無し。"),
-           "d": ("38761D", "○ advisor-researcher は CLAUDE.md 3/3・agent_skills 4/4。assumptions-analyzer は 1/1・1/1。"),
+           "d": ("38761D", "○ advisor-researcher は CLAUDE.md 3/3・agent_skills 4/4。assumptions-analyzer は 1/1・1/1。"
+                            "fork skill そのものを agent_skills に登録した形では、advisor-researcher は子を起動しなかった（0/4）。"),
            "e": ("BF8F00", "△ advisor-researcher の置き換えを discuss:pre の文で頼んだ回は、メインが discuss:pre の処理（render-hooks）を"
                          "実行せず、文が渡らなかった。gsd-advisor-researcher が 4 回起動された（追加の形は L1-advisor で起動された）。")}
 
@@ -56,9 +57,10 @@ def fill(m):
         ("gsd-phase-researcher・gsd-pattern-mapper（計画の前の調査）",
          (X, "✕"),
          (O, "○ research=false・pattern_mapper=false ＋ plan:pre で置き換わり、planner は自作の RESEARCH.md・PATTERNS.md を読んだ。"),
-         (G, "△ researcher は CLAUDE.md 1/1・agent_skills 1/2。pattern-mapper は Skill が無く ✕。"),
+         (G, "△ researcher は CLAUDE.md 1/1・agent_skills 1/2。pattern-mapper は Skill が無く ✕。"
+             "config の agent_tools で Skill を追加すると、pattern-mapper も子を起動した（1/1）。"),
          (X, "✕ plan のポイントには文を入れられない。"),
-         "R-plan-b・R-plan-c・R-ctrl-plan・D-plan・D2-quick"),
+         "R-plan-b・R-plan-c・R-ctrl-plan・D-plan・D2-quick・HK-AT-pmr"),
         ("gsd-ui-researcher・gsd-ui-checker（UI の決め事）",
          (X, "✕"),
          (G, "△ /gsd-ui-phase にはポイントが無い。plan-phase で ui_phase=false ＋ plan:pre にすると置き換わり、planner は自作の UI-SPEC.md を読んだ。"),
@@ -122,13 +124,20 @@ def fill(m):
          (X, "✕ Skill の道具が無く、指示を読んでも子を起動しなかった。"),
          (X, "✕"),
          "L1-docs・L1-ingest・L1-ai2・L1-livedom・L1-deepv・D2-*"),
-        ("gsd-mempalace-curator・gsd-user-profiler・gsd-intel-updater",
+        ("gsd-mempalace-curator・gsd-user-profiler",
          (X, "✕"),
          (N, "未検証。curator は ship:post の後（push と PR の後）にしか起動されず、git push はしない約束なので実行していない。"
              "ship:pre では B・C・E とも起動された。"),
-         (N, "未検証（3 ロールとも Skill が無い）。"),
+         (N, "未検証（2 ロールとも Skill が無い）。"),
          (N, "未検証。"),
-         "L1-verify0（ship）・L1-intel（intel を有効にしても intel-updater は起動されなかった）・profile-user は PC 全体の設定に書き込むため実行していない"),
+         "L1-verify0（ship）・profile-user は PC 全体の設定に書き込むため実行していない"),
+        ("gsd-intel-updater",
+         (X, "✕"),
+         (G, "△ 起動する手順書が GSD に無い。/gsd-map-codebase --query refresh で、メインが自分の判断で起動した（1 回）。"
+             "plan:pre の step で、gsd-intel-updater か自作を起動する形は動いた。"),
+         (O, "○ config の agent_tools で Skill を追加すると、子を起動した（1/1）。"),
+         (N, "未検証。"),
+         "HK-IN-0・IN-f2・IN-d・IN-b2r・IN-b3r"),
     ]
 
     m.FIRE_ROWS[:] = [
