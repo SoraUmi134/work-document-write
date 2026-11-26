@@ -13,6 +13,7 @@
   はみ出し    枠の線をまたいでいる（吹き出しとその札は除く）
   禁止語      使ってはいけない言い方（../../review-before-delivery/banned_words.txt）
   長い文      1 つの図形の文が長すぎる
+  Excel が開けない  プリセットの形に無い調整値の名前（例: round2SameRect に adj）。Excel が修復を求め、図全体が消える
 
 終了コード: 見つかった数が 0 なら 0、あれば 1。
 """
@@ -42,6 +43,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BANNED = os.path.join(HERE, "..", "..", "review-before-delivery", "banned_words.txt")
 DOC_WORDS = ("計画書", "PLAN.md", "SKILL.md", "手引き", "capability.json")
 IGNORE_OVERLAP = ("重なり", "できない所", "使わない印", "足す印", "番号", "凡例", "区切り線")
+# プリセットの形ごとに、avLst に書ける調整値（gd）の名前。名前が違うと Excel が「問題が見つかった」と修復を求め、
+# 修復すると drawing 全体が消える（round2SameRect に adj を書いて起きた）。
+PRESET_GUIDES = {"rect": set(), "ellipse": set(), "flowChartDocument": set(), "flowChartPredefinedProcess": set(),
+                 "roundRect": {"adj"}, "round1Rect": {"adj"}, "snip1Rect": {"adj"}, "homePlate": {"adj"}, "plus": {"adj"},
+                 "round2SameRect": {"adj1", "adj2"}, "round2DiagRect": {"adj1", "adj2"},
+                 "snip2SameRect": {"adj1", "adj2"}, "snip2DiagRect": {"adj1", "adj2"}, "snipRoundRect": {"adj1", "adj2"},
+                 "borderCallout1": {"adj1", "adj2", "adj3", "adj4"}}
 
 
 class Shape:
@@ -105,7 +113,7 @@ def one(part, xf, groups, is_cxn):
             runs = [("", int(R.first(r'sz="(\d+)"', pa) or 1100) / 100, (False, DEFAULT_FONT))]
         paras.append(runs)
     text = "".join(t for p in paras for t, _, _ in p)
-    adjs = {k: int(v) / 1e5 for k, v in re.findall(r'<a:gd name="(adj\d)" fmla="val (-?\d+)"', sppr)}
+    adjs = {k: int(v) / 1e5 for k, v in re.findall(r'<a:gd name="(adj\d*)" fmla="val (-?\d+)"', sppr)}
     return Shape(id=sid, name=name, prst=prst, x=x, y=y, w=w, h=h, flipH=flipH, flipV=flipV,
                  is_cxn=is_cxn or prst in ("line", "straightConnector1") or prst.startswith("bentConnector"),
                  line=line, ins=ins, paras=paras, text=text, wrap=R.first(r'wrap="(\w+)"', body) or "square",
@@ -211,6 +219,14 @@ def check(shapes, only_group=None):
     banned = load_banned()
     boxes = [s for s in shapes if not s.is_cxn and s.has_fill and s.text.strip() and s.w > 30 and s.h > 20
              and not any(k in s.name for k in IGNORE_OVERLAP)]
+    for s in shapes:
+        allowed = PRESET_GUIDES.get(s.prst)
+        if allowed is not None:
+            bad = sorted(k for k in s.adjs if k not in allowed)
+            if bad:
+                add("Excel が開けない", s,
+                    f"{s.prst} の調整値の名前 {bad} は無効（使えるのは {sorted(allowed) or 'なし'}）。"
+                    "Excel が「問題が見つかった」と修復を求め、図全体を消す")
     for s in shapes:
         if s.is_cxn or not s.text.strip():
             continue

@@ -145,7 +145,14 @@ class Drawing:
               align="ctr", anchor="ctr", ins=(4, 2, 4, 2), wrap="square", rot=0, link=None,
               name="図形"):
         n = self._new_id()
-        gds = f'<a:gd name="adj" fmla="val {adj}"/>' if adj is not None else ""
+        # 調整値が 2 つある形は名前が adj1・adj2。adj と書くと Excel が修復を求め、図全体が消える
+        two = {"round2SameRect", "round2DiagRect", "snip2SameRect", "snip2DiagRect", "snipRoundRect"}
+        if adj is None:
+            gds = ""
+        elif prst in two:
+            gds = f'<a:gd name="adj1" fmla="val {adj}"/><a:gd name="adj2" fmla="val 0"/>'
+        else:
+            gds = f'<a:gd name="adj" fmla="val {adj}"/>'
         if adjs:
             gds = "".join(f'<a:gd name="{k}" fmla="val {int(v)}"/>' for k, v in adjs.items())
         fillx = f"<a:solidFill>{clr(fill)}</a:solidFill>" if fill else "<a:noFill/>"
