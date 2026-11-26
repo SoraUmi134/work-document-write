@@ -400,6 +400,56 @@ def measure_grid(xlsx, drawing_part="xl/drawings/drawing1.xml"):
         return CellGrid.measure(z.read(drawing_part).decode("utf-8"), z.read(sheet).decode("utf-8"))
 
 
+_NS_XDR = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+_NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+_NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_NS_REL = "http://schemas.openxmlformats.org/package/2006/relationships"
+_CT_DRAWING = "application/vnd.openxmlformats-officedocument.drawing+xml"
+# sheet の中で drawing より後ろに置く決まりの要素（この手前に drawing を挿入する）
+_AFTER_DRAWING = r"<(legacyDrawing|legacyDrawingHF|drawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b"
+
+
+def ensure_drawing(xlsx_in, xlsx_out, sheet_part="xl/worksheets/sheet1.xml"):
+    """sheet に図の入れ物（空の drawing）が無ければ足して xlsx_out に書く。戻り値は drawing の部品名。
+    openpyxl などでセルの文字と書式だけを書いた xlsx に、あとから write_into で図を載せるときに使う
+    （見出しや数行の説明はセルに書き、図だけを図形で描く形）。既に図があれば、中身を変えずに部品名を返す。"""
+    rels_part = sheet_part.replace("worksheets/", "worksheets/_rels/") + ".rels"
+    with zipfile.ZipFile(xlsx_in) as zin:
+        infos = zin.infolist()
+        parts = {info.filename: zin.read(info.filename) for info in infos}
+    order = [info.filename for info in infos]
+    rels = parts[rels_part].decode("utf-8") if rels_part in parts else None
+    found = re.search(r'Target="(?:\.\./|/xl/)?drawings/(drawing\d+\.xml)"', rels or "")
+    if found:
+        part = "xl/drawings/" + found.group(1)
+    else:
+        used = [int(m) for n in order for m in re.findall(r"^xl/drawings/drawing(\d+)\.xml$", n)]
+        part = f"xl/drawings/drawing{max(used or [0]) + 1}.xml"
+        rid = "rIdXdraw1"
+        rel = f'<Relationship Id="{rid}" Type="{_NS_R}/drawing" Target="../drawings/{part.rsplit("/", 1)[1]}"/>'
+        if rels:
+            rels = rels.replace("</Relationships>", rel + "</Relationships>")
+        else:
+            rels = (f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    f'<Relationships xmlns="{_NS_REL}">{rel}</Relationships>')
+            order.append(rels_part)
+        sheet = parts[sheet_part].decode("utf-8")
+        later = re.search(_AFTER_DRAWING, sheet)
+        at = later.start() if later else sheet.rindex("</worksheet>")
+        sheet = sheet[:at] + f'<drawing xmlns:r="{_NS_R}" r:id="{rid}"/>' + sheet[at:]
+        ctypes = parts["[Content_Types].xml"].decode("utf-8")
+        ctypes = ctypes.replace("</Types>", f'<Override PartName="/{part}" ContentType="{_CT_DRAWING}"/></Types>')
+        empty = (f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                 f'<xdr:wsDr xmlns:xdr="{_NS_XDR}" xmlns:a="{_NS_A}"></xdr:wsDr>')
+        parts.update({rels_part: rels.encode("utf-8"), sheet_part: sheet.encode("utf-8"),
+                      "[Content_Types].xml": ctypes.encode("utf-8"), part: empty.encode("utf-8")})
+        order.append(part)
+    with zipfile.ZipFile(xlsx_out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for name in order:
+            zout.writestr(name, parts[name])
+    return part
+
+
 def _strip_untagged(drawing_xml):
     """台本で足していない図（人が描いた図）をすべて外す。描き直すときだけ使う。"""
     pat = re.compile(r"<xdr:(absoluteAnchor|oneCellAnchor|twoCellAnchor)\b.*?</xdr:\1>", re.S)

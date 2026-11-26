@@ -1,743 +1,617 @@
-"""「GSD で自作のサブエージェントを起動する 5 つの方法」（GSD 1.23.0 の実機の結果）を描く。
+"""「GSD で自作のサブエージェントを起動する 5 つの方法」の Excel を作る（GSD 1.23.0 の実機の結果）。
 
-使い方:
-  python3 build_own5.py <手本の xlsx> <出力の xlsx>
+使い方（openpyxl が要る。作業用の venv の python で実行する）:
+  <venv>/bin/python build_own5.py <テーマの元の xlsx> <出力の xlsx>
 
-- 手本の xlsx のシートと列・行の大きさを使い、手本の図は外して、このスクリプトの図（マーカー own5*）を描く。
-  手本には、前に出力した「GSDで自作サブエージェントを起動する5つの方法.xlsx」自身を渡せばよい
-  （最初の手本だった GSDに独自処理を挟む3つの方法_v4.xlsx は削除した。自身を渡しても同じ内容になることを確認済み）。
-- 部品（色・字・箱・吹き出し・凡例・表のセル）は build_3ways_v4.py の物をそのまま使う。
-- 図の中の事実は、検証用の案件のコピー（trials-v2/own-*）で GSD 1.23.0 を実際に実行した結果だけを書く。
-  仕様（GSD の文書）は参考リンクにとどめ、仕様と実際が違った所はそう書く。
-- 吹き出しの線は、図の枠の右端に置いた番号へ引く（線が図の中の箱を横切らないように）。
-- 表の内容・結論・一部の文は own5_data.py に置く。
+- テーマの元の xlsx は、図形の色（緑 = accent6 など）を決めるテーマを写すために使う。前に出力した Excel 自身でよい。
+- 人が作った Excel（GSDに独自処理を挟む方法の検討.xlsx）の見た目に合わせてある。
+  - 見出しの帯・結論の数行・パターンの題と結果は、図形ではなくセルに書く（メイリオ）。
+  - 図はパターンごとに 1 枚。注は紫の「ポイント」の箱 1 つで、3 行まで。長い説明は図に書かない。
+  - 比べる話は別のシートのセルの表にする（シート 2: パターンの比較表、シート 3: ロールごとの結果）。
+- 図のコマンドは /gsd-new-project から /gsd-verify-work まで描く。
+- 詳しい検証の結果（問題点の全文・コマンドごとのループポイント・autonomous・GSD の外の方法の全項目）は Excel に入れない。
+  作業場の 記録/資料の文字の版と根拠/ の md に残してある。ロールごとの表の内容は own5_data.py の ROLE_ROWS。
 """
 import importlib.util
+import math
 import os
-import re
 import sys
 import zipfile
 
+from openpyxl import Workbook
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.utils.indexed_list import IndexedList
+
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "skills", "excel-figure", "scripts"))
+from xdraw import CellGrid, Drawing, ensure_drawing, write_into  # noqa: E402
+
 spec = importlib.util.spec_from_file_location("v4", os.path.join(HERE, "build_3ways_v4.py"))
 v4 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(v4)
-Drawing, measure_grid, write_into = v4.Drawing, v4.measure_grid, v4.write_into
-GREEN, GREEN_LINE, BLUE, BLUE_LINE, PURPLE = v4.GREEN, v4.GREEN_LINE, v4.BLUE, v4.BLUE_LINE, v4.PURPLE
-RED, GOLD, OK_GREEN, INK, SUB, UD, YU, AW = v4.RED, v4.GOLD, v4.OK_GREEN, v4.INK, v4.SUB, v4.UD, v4.YU, v4.AW
-LINES = v4.LINES
-box, doc, ghost, line, badge, note, need_h = v4.box, v4.doc, v4.ghost, v4.line, v4.badge, v4.note, v4.need_h
-place_problems = v4.place_problems
-LEGEND_TEXT = {
-    "colors": "緑の箱 = GSD の物　青の箱 = 自作の物（キットが用意する）",
-    "doc": "書類の形 = 読むだけの物（setup が配置する物・設定）",
-    "ghost": "灰の点線の箱 = 起動されなかった物・できない所",
-    "graycross": "灰の ✕ = 既定のロールが起動されなかった",
-    "red": "赤い丸の数字 = できない所（数字は右の問題点の番号）",
-    "gold": "金の丸の数字 = 条件つき・毎回ではない所（数字は右の問題点の番号）",
-    "callout": "淡い黄の吹き出し = 問題点（線の先の右端の番号が、図の中の同じ番号）",
-    "purple": "紫の字 = GSD の動きを変える設定・指示",
+GREEN, GREEN_LINE, BLUE, BLUE_LINE = v4.GREEN, v4.GREEN_LINE, v4.BLUE, v4.BLUE_LINE
+INK, SUB, YU, UD, LINES = v4.INK, v4.SUB, v4.YU, v4.UD, v4.LINES
+OK_GREEN, GOLD, RED = v4.OK_GREEN, v4.GOLD, v4.RED
+
+# ---- セルの大きさ（人の Excel と同じ方眼。既定の字体は 游ゴシック 12） ---------------------------
+# 列の幅 3.7109375・行の高さ 20 のシートを Mac の Excel で開いた時の実際の大きさ（EMU）。既存の図から測った値。
+COL_EMU, ROW_EMU = 331931.875, 259772.792
+PX_EMU = ROW_EMU / 27            # 行の高さ 20pt は 27 ピクセルで描かれる
+EMU_PT = 12700
+MEIRYO = "メイリオ"
+BAND_FILL = "A9D98B"             # 見出しの帯（人の Excel の緑）
+HEAD_FILL = "B4C6E7"             # 表の見出し（人の比較表の青）
+SHEETS = ("1.自作サブエージェントを起動する方法", "2.パターンの比較表", "3.ロールごとの結果")
+LAST_COL = 61                    # 帯を塗る右端の列（図の枠の右端）
+
+# ---- シート 1 の文（セルに書く） ---------------------------------------------------------------
+LEAD = "GSD に自作のサブエージェントを起動させる方法を 5 つ、GSD 1.23.0 の実機で検証した。結論は下記の通り。"
+CONCLUSIONS = [
+    "[1] 1 つのパターンで、GSD の全部のサブエージェントを自作に置き換えることはできない",
+    "[2] パターンA は gsd-executor だけ、パターンB・C はループポイントのある所のサブエージェントだけを置き換えられる",
+    "[3] パターンD・E は、既定のサブエージェントやメインエージェントに自作の起動を任せる形で、毎回は効かない",
+    "[4] どのパターンでも、自作のサブエージェントの定義は、案件ごとの setup で .claude/ に配置する必要がある",
+    "[5] GSD の外の仕組み（Claude Code の hook）を使うと、全部のサブエージェントを置き換えられる（シート 2 の参考）",
+]
+TERMS = [
+    "言葉）メインエージェント = 人と話し、コマンドの手順どおりにサブエージェント（作業を任せる別の AI）を起動する AI。",
+    "　　　ループポイント = Capability（GSD に部品を追加する正式な仕組み）の処理を挿入できる場所（plan:pre など）。",
+    "　　　fork skill = 呼ぶと、指定したサブエージェントを子として起動する skill。　setup = 案件ごとに 1 回、自作の部品を .claude/ に配置する作業。",
+]
+
+# ---- 図の骨組み -----------------------------------------------------------------------------
+FX, FW, FH = 45, 1516, 600
+BAR_X, BAR_W = 401, 1148
+CMDS = [("np", 401, 150, "/gsd-new-project", "案件を始める"), ("discuss", 563, 150, "/gsd-discuss-phase", "決め事を相談"),
+        ("plan", 725, 250, "/gsd-plan-phase", "計画書を書く"), ("execute", 987, 320, "/gsd-execute-phase", "作る"),
+        ("verify", 1319, 230, "/gsd-verify-work", "人が確認する")]
+ITEM_H, ITEM_GAP, ITEM_TOP = 62, 16, 236
+POINT_FILL, POINT_LINE = ("accent5", 20, 80), ("accent5", 50, None)
+
+
+def G(name, sub=None, **kw):
+    return dict(kind="gsd", name=name, sub=sub, **kw)
+
+
+def O(name, sub=None, **kw):
+    return dict(kind="own", name=name, sub=sub, **kw)
+
+
+def OFF(name):
+    return dict(kind="off", name=name, sub=None)
+
+
+def NONE(text):
+    return dict(kind="none", name=text, sub=None)
+
+
+STEP_COLS = lambda arrow: {  # noqa: E731  パターンB・C の列（arrow は「step」の後ろに付ける字）
+    "np": [NONE("ループポイントが無い\n（自作を起動できない）")],
+    "discuss": [O("own-○○", f"discuss:pre・post{arrow}（追加）")],
+    "plan": [O("own-researcher", f"plan:pre{arrow}（gsd-phase-researcher の代わり）"),
+             G("gsd-planner", "オフにできない（必ず動く）"),
+             O("own-plan-checker", f"plan:post{arrow}（gsd-plan-checker の代わり）")],
+    "execute": [G("gsd-executor", "オフにできない（必ず動く）"),
+                O("own-code-reviewer・own-verifier", f"execute:post{arrow}（既定の 2 つの代わり）"),
+                O("own-○○-auditor（監査の 3 つ）", f"verify:post{arrow}（既定の監査の代わり）")],
+    "verify": [O("own-○○", f"verify:pre{arrow}（追加）"),
+               NONE("不具合の調査（gsd-debugger）の所には\nループポイントが無い")],
 }
 
+PATTERNS = [
+    dict(key="A", title="パターンA（計画書の agent_hint で、gsd-executor を自作に置き換える）",
+         verdict="結果）△　置き換えられるのは、/gsd-execute-phase の gsd-executor だけ。",
+         setup=[".claude/agents/own-executor.md", "gsd-planner への指示:", "「計画書に agent_hint: own-executor を書く」"],
+         cols={"plan": [G("gsd-planner", doc=["計画書 PLAN.md", "agent_hint: own-executor"])],
+               "execute": [O("own-executor", "gsd-executor の代わりに起動される"), OFF("gsd-executor"),
+                           G("gsd-verifier", "置き換わらない")],
+               "verify": [G("gsd-debugger など", "置き換わらない")]},
+         points=["① 置き換わるのは、/gsd-execute-phase の gsd-executor だけ（4 回中 4 回）。",
+                 "② agent_hint に gsd-verifier など別のサブエージェントの名前を書いても、置き換わらない。",
+                 "③ /gsd-quick の実装では、gsd-executor が起動された（置き換わらない）。"]),
+    dict(key="B", title="パターンB（Capability の step で、ループポイントに自作を起動する）",
+         verdict="結果）△〜○　ループポイントのある所は置き換えられる。gsd-planner と gsd-executor は置き換えられない。",
+         setup=[".claude/agents/own-○○.md", "capability.json の steps:", '  { "point": "plan:pre",',
+                '    "ref": { "agent": "own-researcher" } }', "config.json で既定のサブエージェントをオフ:",
+                '  "research": false など'],
+         cols=STEP_COLS(""),
+         points=["① 自作を起動できるのは、ループポイントのあるコマンドだけ。/gsd-new-project など 14 コマンドには無い。",
+                 "② config.json で既定のサブエージェントをオフにすると置き換えになる。gsd-planner・gsd-executor はオフにできない。",
+                 "③ step に止める力は無い。自作の plan-checker が問題を見つけても、gsd-planner への差し戻しは起きない。"]),
+    dict(key="C", title="パターンC（Capability の step が fork skill を呼び、skill が自作を起動する）",
+         verdict="結果）△〜○　起動される場所と置き換えられる範囲は、パターンB と同じ。",
+         setup=[".claude/agents/own-○○.md", ".claude/skills/own-○○/SKILL.md", "  （context: fork・agent: own-○○）",
+                "capability.json の steps:", '  { "point": "plan:pre",', '    "ref": { "skill": "own-researcher" } }',
+                "config.json で既定のサブエージェントをオフ"],
+         cols=STEP_COLS(" → skill"),
+         points=["① パターンB との違いは、step が skill を呼び、その skill が自作を子として起動すること。",
+                 "② skill も setup で .claude/skills/ に配置する（Capability に入れても配置されない）。",
+                 "③ /gsd-autonomous では、plan:pre の skill が 2 回動く。"]),
+    dict(key="D", title="パターンD（GSD の既定のサブエージェントが、fork skill で自作の子を起動する）",
+         verdict="結果）△　置き換えではない。既定のサブエージェントは必ず動き、作業の一部を自作の子に任せる形。",
+         setup=[".claude/agents/own-○○.md（自作の子）", ".claude/skills/own-○○/SKILL.md（fork skill）",
+                "既定のサブエージェントへの指示:", "「最初に Skill で own-○○ を呼ぶ」",
+                "  案件の CLAUDE.md か、config の agent_skills"],
+         cols={"np": [G("gsd-roadmapper", child="own-○○")], "plan": [G("gsd-planner", child="own-○○")],
+               "execute": [G("gsd-executor", child="own-○○"), G("gsd-verifier", child="own-○○")],
+               "verify": [G("gsd-debugger", child="own-○○")]},
+         side=("execute",),
+         points=["① 既定のサブエージェントは必ず動く。子が作業をしても、自分のルールで最後まで動く。",
+                 "② 子を起動できるのは、Skill の道具を持つ 22 体だけ。残りの 14 体には、config の agent_tools で道具を追加する。",
+                 "③ 指示に従わない回がある（gsd-plan-checker は 6 回中 3 回）。"]),
+    dict(key="E", title="パターンE（Capability の文でメインエージェントに頼み、自作を起動させる）",
+         verdict="結果）△　使えるのは discuss・verify・ship の前後だけ。メインエージェントが文に従う保証は無い。",
+         setup=[".claude/agents/own-○○.md", "capability.json の contributions:", '  { "point": "verify:pre",',
+                '    "into": "orchestrator", … }', "文の例:", "「gsd-debugger の代わりに own-debugger を起動する」"],
+         cols={"discuss": [O("own-○○", "discuss:pre・post の文（追加）")],
+               "plan": [NONE("メインエージェント宛ての文を\n入れられない（インストールで止まる）")],
+               "execute": [NONE("メインエージェント宛ての文を\n入れられない"), O("own-○○", "最後の verify:post の文だけ（追加）")],
+               "verify": [O("own-debugger など", "verify:pre の文（既定の 3 つの代わり）"), OFF("gsd-debugger など")]},
+         points=["① メインエージェントへの依頼文に「自作を起動する」と書く形。従うかはメインエージェントの判断で、保証は無い。",
+                 "② 文を入れられるのは discuss・verify・ship の前後の 6 か所だけ。plan と execute には入れられない。",
+                 "③ /gsd-verify-work では、gsd-debugger・gsd-planner・gsd-plan-checker が自作に置き換わった。"]),
+]
 
-def legend(d, x, y, lines, shapes):
-    """build_3ways_v4 の凡例と同じ見た目で、この図の言葉に合わせた物。"""
-    with d.group("凡例"):
-        d.text(x, y, 120, 18, [[("凡例", {"bold": True})]], size=10, font=UD, color="000000", wrap="none",
-               name="凡例の見出し")
-        yy = y + 20
-        for k in lines:
-            color, lw, dash, label, _ = LINES[k]
-            if k == "spawn":
-                label = "サブエージェントを起動する"
-            elif k == "read":
-                label = "読む（矢印の先の物を読む）"
-            elif k == "write":
-                label = "計画書を書く"
-            elif k == "boundary":
-                label = "コマンドごとの境目（その上のコマンドで動く範囲）"
-            d.connector((x, yy + 9), (x + 34, yy + 9), color=color, lw=lw, dash=dash, name="凡例の線")
-            d.text(x + 40, yy, 280, 18, label, size=10, font=UD, color="000000", wrap="none", name="凡例の文")
-            yy += 19
-        yy += 4
-        for k in shapes:
-            if k == "colors":
-                d.shape(x, yy + 2, 16, 14, "roundRect", fill=GREEN, line=GREEN_LINE, adj=8000, name="凡例の色")
-                d.shape(x + 18, yy + 2, 16, 14, "roundRect", fill=BLUE, line=BLUE_LINE, adj=8000, name="凡例の色")
-            elif k == "doc":
-                d.shape(x, yy + 1, 34, 16, "flowChartDocument", fill=BLUE, line=BLUE_LINE, dash="dash", name="凡例の書類")
-            elif k == "ghost":
-                d.shape(x, yy + 1, 34, 16, "roundRect", fill=v4.GHOST_FILL, line=v4.GHOST_LINE, dash="dash", adj=8000,
-                        name="凡例の要る物")
-            elif k == "graycross":
-                d.cross(x + 17, yy + 9, size=16, color=("tx1", 50, 50))
-            elif k == "red":
-                badge(d, x + 10, yy + 9, "N", size=18)
-            elif k == "gold":
-                badge(d, x + 10, yy + 9, "N", gold=True, size=18)
-            elif k == "callout":
-                d.shape(x, yy + 1, 34, 16, "rect", fill=v4.CALLOUT_FILL, line=v4.CALLOUT_LINE, lw=1, name="凡例の吹き出し")
-            elif k == "purple":
-                d.text(x, yy, 36, 18, "紫の字", size=9, font=UD, color=PURPLE, wrap="none", name="凡例の紫")
-            d.text(x + 40, yy, 280, 18, LEGEND_TEXT[k], size=10, font=UD, color="000000", wrap="none", name="凡例の文")
-            yy += 20
-    return yy
-
-GH = "https://github.com/open-gsd/gsd-core"
-v4.L.update({
-    "hint123": GH + "/blob/v1.23.0/docs/reference/plan-md.md#per-plan-executor-routing",
-    "routing123": GH + "/blob/v1.23.0/gsd-core/workflows/execute-phase/steps/per-plan-executor-routing.md",
-    "steps123": GH + "/blob/v1.23.0/docs/reference/capability-manifest.md#steps",
-    "points123": GH + "/blob/v1.23.0/docs/reference/capability-manifest.md#valid-point-values",
-    "agents123": GH + "/blob/v1.23.0/docs/reference/capability-manifest.md#agents",
-    "5738": GH + "/issues/5738",
-    "toggles123": GH + "/blob/v1.23.0/docs/CONFIGURATION.md#workflow-toggles",
-    "skills123": GH + "/blob/v1.23.0/docs/CONFIGURATION.md#agent-skills-injection",
-})
-
-
-def split_para(t, limit):
-    """長い文を、句点（。）で段落に分ける。それでも長い所は読点（、）で分ける。"""
-    out = []
-    for s in re.findall(r"[^。]+。?", t):
-        while len(s) > limit:
-            cut = max(s.rfind("、", 0, limit), s.rfind("・", 0, limit), s.rfind("）", 0, limit))
-            if cut < limit // 3:
-                break
-            out.append(s[:cut + 1])
-            s = s[cut + 1:]
-        if s.strip():
-            out.append(s)
-    return out
-
-
-def PP(text, red=None):
-    """吹き出しの段落の list を作る。text は濃い字、red は赤（何が困るか）。長い文は段落に分ける。"""
-    paras = [[(p, {"color": INK})] for p in split_para(text, 90)] if text else []
-    if red:
-        paras += [[(p, {"color": RED})] for p in split_para(red, 90)]
-    return paras
-
-
-def cell(text):
-    """表のセルの文。長い文は段落に分ける（1 段落 70 字まで）。"""
-    return split_para(text, 70)
-
-
-# ---- 骨組み（コマンド 5 つ） ----------------------------------------------------------
-X0 = 372
-CMDS = [(X0, 150, "/gsd-new-project", "案件を始める"), (X0 + 154, 122, "/gsd-discuss-phase", "決め事を相談"),
-        (X0 + 280, 290, "/gsd-plan-phase", "計画書を書く"), (X0 + 574, 380, "/gsd-execute-phase", "実装する"),
-        (X0 + 958, 211, "/gsd-verify-work", "人が確認する")]
-BOUNDS = tuple(c[0] - 2 for c in CMDS[1:])
-POINTS = [[], ["discuss:pre", "discuss:post"], ["plan:pre", "plan:post"],
-          ["execute:pre", "wave:pre", "wave:post", "execute:post", "verify:post"], ["verify:pre", "verify:post"]]
-FX, FW = 34, 1517            # 図の枠
-EDGE = FX + FW               # 枠の右端（吹き出しの線の先の番号を置く）
-T_ = {}                      # own5_data が入れる文
-
-
-def verdict_badge(d, x, y, label, color):
-    w = 15 * len(label) + 24
-    d.shape(x, y, w, 26, "roundRect", fill=color, line=None, adj=20000,
-            text=[[(label, {"bold": True, "color": "FFFFFF"})]], size=13, font=UD, ins=(0, 0, 0, 0), name="見出し（評価）")
-    return x + w
-
-
-def skeleton(d, Y0, title, verdict, vcolor, why, fired=None):
-    d.text(26, Y0, 1500, 44, title, size=28, font=None, color="000000", wrap="none", name="見出し")
-    x = verdict_badge(d, 34, Y0 + 47, verdict, vcolor)
-    d.text(x + 10, Y0 + 48, 1400, 26, why, size=14, font=UD, color="000000", wrap="none", name="見出し（理由）")
-    T = Y0 + 82
-    cmds = []
-    for cx, w, a, b in CMDS:
-        cmds.append(d.shape(cx, T + 20, w, 61, "homePlate", fill=GREEN, line=GREEN_LINE, lw=0.75, adj=18000,
-                            text=[[(a, {"bold": True})], b], size=10.5, font=YU, color="000000", ins=(2, 0, 9, 0), name=a))
-    d.text(78, T + 78, 150, 24, "人（入力するコマンド）", size=12, font=None, color="000000", wrap="none", name="文字")
-    d.connector((56, T + 102), (EDGE - 12, T + 102), color="A6A6A6", lw=1, tail=False, name="区切り線")
-    d.text(78, T + 104, 80, 24, "裏側の処理", size=12, font=None, color="000000", wrap="none", name="文字")
-    main = d.shape(X0, T + 143, CMDS[-1][0] + CMDS[-1][1] - X0, 41, "roundRect", fill=GREEN, line=GREEN_LINE, adj=8000,
-                   text="メインエージェント（人と話す AI。コマンドの手順書どおりにサブエージェントを起動する）",
-                   size=13, font=UD, color=INK, name="メインエージェント")
-    MB = T + 184
-    for c in cmds:
-        line(d, "cmd", (c, 2), (c.site(2)[0], T + 143))
-    with d.group("ループポイントの札"):
-        for (cx, w, a, _), pts in zip(CMDS, POINTS):
-            if not pts:
-                d.text(cx + 2, MB + 9, w - 4, 18, "ループポイント無し", size=8.5, font=UD, color=SUB, align="ctr",
-                       wrap="none", name="ポイント無し")
-                continue
-            tw = (w - 8 - 3 * (len(pts) - 1)) / len(pts)
-            for k, p in enumerate(pts):
-                on = fired is not None and p in fired
-                d.shape(cx + 4 + k * (tw + 3), MB + 6, tw, 22, "rect", fill=("accent1", 20, 80) if on else "FFFFFF",
-                        line=BLUE_LINE if on else "A6A6A6", lw=0.75, text=p, size=8, font=UD,
-                        color=INK if on else SUB, ins=(1, 0, 1, 0), name=f"ポイント {p}")
-    return T, main, MB
+# ---- シート 2 の文 ---------------------------------------------------------------------------
+COMPARE_HEAD = [
+    "【パターンA】\n計画書（PLAN.md）の agent_hint の欄に、自作のサブエージェントの名前を書く",
+    "【パターンB】\ncapability.json の steps に、ループポイントと自作のサブエージェント（ref.agent）を書く",
+    "【パターンC】\ncapability.json の steps に、ループポイントと fork skill（ref.skill）を書き、skill が自作を起動する",
+    "【パターンD】\nGSD の既定のサブエージェントに「fork skill を呼ぶ」指示を渡し、自作を子として起動させる",
+    "【パターンE】\ncapability.json の contributions に、メインエージェント宛ての「自作を起動する」文を書く",
+]
+COMPARE_ROWS = [
+    ("置き換えられるサブエージェント", [
+        ("△", "gsd-executor だけ。別のサブエージェントの名前を書いても置き換わらない"),
+        ("△〜○", "ループポイントのある所の 9 体（調査・計画のチェック・コードレビュー・検証・監査）。gsd-planner と gsd-executor はオフにできない"),
+        ("△〜○", "パターンB と同じ"),
+        ("✕", "置き換えではない。既定のサブエージェントは必ず動き、自作は子として追加される"),
+        ("△", "/gsd-verify-work の中の gsd-debugger・gsd-planner・gsd-plan-checker。メインエージェントが文に従った時だけ"),
+    ]),
+    ("使えるコマンドの範囲", [
+        ("△", "/gsd-execute-phase だけ。/gsd-quick では置き換わらなかった"),
+        ("△", "ループポイントのある discuss・plan・execute・verify-work。/gsd-new-project など 14 コマンドには無い"),
+        ("△", "パターンB と同じ"),
+        ("○", "全部のコマンド（指示を案件の CLAUDE.md で渡した場合）。agent_skills で渡すと、渡らないコマンドがある"),
+        ("△", "discuss・verify・ship の前後の 6 か所だけ。plan と execute には文を入れられない"),
+    ]),
+    ("毎回、設定どおりに動くか\n\n重要", [
+        ("○", "4 回中 4 回。GSD の手順書が agent_hint を読んで振り分ける"),
+        ("○", "ループポイントのある所では毎回起動された。ただし step に止める力は無い"),
+        ("○", "パターンB と同じ"),
+        ("△", "サブエージェントが指示に従うかしだい。gsd-plan-checker は 6 回中 3 回"),
+        ("△", "メインエージェントが文に従うかしだい。相談のモードによっては文が渡らなかった"),
+    ]),
+    ("GSD の設定を変えずに使えるか", [
+        ("○", "GSD の正規の欄を使う。設定は変えない"),
+        ("△", "置き換えるには、config.json で既定のサブエージェントをオフにする"),
+        ("△", "パターンB と同じ"),
+        ("△〜○", "変えない。Skill の道具が無い 14 体に使う時だけ、config の agent_tools で道具を追加する"),
+        ("○", "変えない"),
+    ]),
+    ("案件ごとの setup で配置する物", [
+        ("", "自作のサブエージェントの定義"),
+        ("", "自作のサブエージェントの定義（Capability に入れても配置されない）"),
+        ("", "自作のサブエージェントの定義と skill"),
+        ("", "自作のサブエージェントの定義と skill、既定のサブエージェントへの指示の文"),
+        ("", "自作のサブエージェントの定義"),
+    ]),
+    ("/gsd-autonomous（自動で進めるコマンド）での動き", [
+        ("○", "単独のコマンドと同じ"),
+        ("○", "計画と実装の中は同じ。相談（smart discuss）の discuss:pre・post は起きない"),
+        ("△", "パターンB と同じ。plan:pre の skill が 2 回動く"),
+        ("○", "CLAUDE.md の指示では、起動された 8 体の全部が子を起動した"),
+        ("△", "実装の最後の verify:post だけ。相談の文は渡らない"),
+    ]),
+]
+OUTSIDE_TITLE = "参考）GSD の外の方法（Claude Code の仕組みと GSD の設定）"
+OUTSIDE_HEAD = ["方法", "やること", "実機の結果", "使うときの注意"]
+OUTSIDE_ROWS = [
+    ("F　Claude Code の hook で起動を書き換える",
+     "GSD が gsd-○○ を起動する直前に、hook（PreToolUse）で起動するサブエージェントを自作に書き換える",
+     ("○", "gsd-planner と gsd-plan-checker が 2 回とも自作に置き換わった。全部のコマンド・全部のサブエージェントに使える"),
+     "Claude Code 以外の実行環境には無い。hook の設定は setup で配置する。自作は GSD の約束（成果物・コミット）を守る必要がある"),
+    ("G　同じ名前のファイルで上書きする",
+     ".claude/agents/gsd-○○.md を自作の内容にする",
+     ("△", "GSD は gsd-plan-checker を起動し、動いたのは自作の内容だった"),
+     "GSD を案件に入れていると、再インストールや版上げで元に戻る"),
+    ("D3　サブエージェントの起動時に hook で指示を挿入する",
+     "gsd-○○ が起動された直後に、hook（SubagentStart）で「Skill で own-○○ を呼ぶ」を挿入する（パターンD の指示の渡し方）",
+     ("○", "gsd-planner と gsd-plan-checker の 2 回とも挿入され、2 回とも子を起動した"),
+     "Claude Code 以外の実行環境には無い。Skill の道具が無いサブエージェントには使えない"),
+    ("agent_tools　サブエージェントに道具を追加する",
+     "config.json の agent_tools に追加したい道具を書き、GSD を再インストールする",
+     ("○", "Skill の道具が無かったサブエージェントも、パターンD で子を起動した"),
+     "再インストールが要る（setup で行う）"),
+]
+MARK_COLOR = {"○": OK_GREEN, "△": GOLD, "△〜○": GOLD, "✕": RED, "": INK}
 
 
-def finish(d, T, bottom):
-    """枠とコマンドごとの境目を、内容の高さに合わせて描く。"""
-    FH = bottom - T + 20
-    d.shape(FX, T, FW, FH, "rect", fill=None, line=("tx2",), lw=2.25, name="枠")
-    with d.group("コマンドごとの境目"):
-        for bx in BOUNDS:
-            line(d, "boundary", (bx, T + 6), (bx, T + 141), tail=False)
-            line(d, "boundary", (bx, T + 186), (bx, T + FH - 6), tail=False)
-    return T + FH
+# =============================================================================================
+#  セル（openpyxl）
+# =============================================================================================
+def new_workbook(theme_src):
+    wb = Workbook()
+    wb._fonts = IndexedList([Font(name="游ゴシック", sz=12, family=2, charset=128, scheme="minor")])
+    with zipfile.ZipFile(theme_src) as z:
+        wb.loaded_theme = z.read("xl/theme/theme1.xml")
+    return wb
 
 
-def col_x(i):
-    return CMDS[i][0], CMDS[i][1]
+def grid_sheet(ws):
+    """人の Excel と同じ方眼（細い列・高さ 20 の行）にする。目盛り線は出さない。"""
+    ws.sheet_format.baseColWidth = 10
+    ws.sheet_format.defaultColWidth = 3.7109375
+    ws.sheet_format.defaultRowHeight = 20
+    ws.sheet_view.showGridLines = False
+    ws.sheet_view.zoomScale = 85
 
 
-def _h(lines, w):
-    return need_h(lines, w, 10, YU, (4, 2, 4, 2)) + 4
+class Rows:
+    """シート 1 の行の割り当て。文字を書いた行は高さを決め、図を置く位置（pt）を計算できるようにする。"""
+
+    def __init__(self, ws):
+        self.ws, self.heights, self.r = ws, {}, 2
+
+    def put(self, text, size, ht, col=2, bold=False, color=INK, band=False):
+        c = self.ws.cell(row=self.r, column=col, value=text)
+        c.font = Font(name=MEIRYO, sz=size, b=bold, color=color)
+        c.alignment = Alignment(vertical="center")
+        self.ws.row_dimensions[self.r].height = ht
+        self.heights[self.r] = ht
+        if band:
+            for k in range(2, LAST_COL + 1):
+                self.ws.cell(row=self.r, column=k).fill = PatternFill("solid", fgColor=BAND_FILL)
+        self.r += 1
+
+    def skip(self, n=1):
+        self.r += n
+
+    def y_of(self, row):
+        """row（1 始まり）の上端の位置（pt）。"""
+        emu = sum(round(self.heights[k] * 4 / 3) * PX_EMU if k in self.heights else ROW_EMU for k in range(1, row))
+        return emu / EMU_PT
+
+    def grid(self):
+        custom = {k - 1: round(h * 4 / 3) * PX_EMU for k, h in self.heights.items()}
+        return CellGrid(COL_EMU, ROW_EMU, custom_rows=custom)
 
 
-def gsd_box(d, x, y, w, name, sub=None):
-    lines = [[("GSDのサブエージェント", {"bold": True})], name] + ([sub] if sub else [])
-    return box(d, x, y, w, _h(lines, w), lines, name=name)
+def box_border(ws, top, bottom, left, right):
+    """セルの外周に細い枠線を引く（結論の一覧の枠）。"""
+    thin = Side(style="thin", color="000000")
+    for r in range(top, bottom + 1):
+        for c in range(left, right + 1):
+            sides = dict(top=thin if r == top else None, bottom=thin if r == bottom else None,
+                         left=thin if c == left else None, right=thin if c == right else None)
+            if any(sides.values()):
+                ws.cell(row=r, column=c).border = Border(**{k: v for k, v in sides.items() if v})
 
 
-def own_box(d, x, y, w, name, sub=None):
-    lines = [[("自作のサブエージェント", {"bold": True})], [(name, {"color": PURPLE})]] + (sub.split("\n") if sub else [])
-    return box(d, x, y, w, _h(lines, w), lines, fill=BLUE, line=BLUE_LINE, name=name)
+def sheet1_cells(ws):
+    """シート 1 のセルの文字を書き、パターンごとの図の位置（左上の pt）を返す。"""
+    grid_sheet(ws)
+    ws.sheet_properties.tabColor = "FCE4D6"
+    rows = Rows(ws)
+    rows.put("1.この資料の結論", 18, 29, band=True)
+    rows.skip()
+    rows.put(LEAD, 14, 24)
+    rows.skip()
+    top = rows.r
+    rows.skip()
+    for line in CONCLUSIONS:
+        rows.put(line, 14, 24, col=3)
+    box_border(ws, top, rows.r, 2, 50)
+    rows.skip(3)
+    rows.put("2.自作のサブエージェントを起動する 5 つのパターン", 18, 29, band=True)
+    rows.skip()
+    for line in TERMS:
+        rows.put(line, 11, 20, color=SUB)
+    rows.skip()
+    fig_rows = math.ceil((FH + 12) * EMU_PT / ROW_EMU)
+    tops = []
+    for p in PATTERNS:
+        rows.put(p["title"], 18, 30)
+        rows.put(p["verdict"], 12, 22, col=3)
+        tops.append(rows.y_of(rows.r) + 6)
+        rows.skip(fig_rows + 2)
+    rows.put("以上", 12, 20)
+    return rows, tops
 
 
-def off_box(d, x, y, w, name, sub="（起動されなかった）"):
-    lines = [name, sub]
-    g = ghost(d, x, y, w, _h(lines, w), lines, name=f"{name}（起動されない）")
-    d.cross(x + w - 9, y + 9, size=13, color=("tx1", 50, 50))
-    return g
-
-
-def cannot_box(d, x, y, w, text, n, gold=False):
-    g = ghost(d, x, y, w, _h(text, w), text, name="できない所")
-    badge(d, x + w - 4, y + 4, n, gold=gold)
-    return g
-
-
-def spawn_tree(d, trunk_x, top, boxes):
-    if not boxes:
+def mark_cell(cell, mark, text, size=10):
+    """「○」などの印を色つきで上に置き、その下に理由を書く（人の比較表と同じ形）。"""
+    cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+    cell.font = Font(name=MEIRYO, sz=size, color=INK)
+    if not mark:
+        cell.value = text
         return
-    color = LINES["spawn"][0]
-    d.connector((trunk_x, top), (trunk_x, boxes[-1].cy), color=color, lw=AW, tail=False, name="起こす矢印の幹")
-    for b in boxes:
-        d.connector((trunk_x, b.cy), (b, 1), color=color, lw=AW, name="起こす矢印の枝")
+    head = TextBlock(InlineFont(rFont=MEIRYO, sz=14, b=True, color=MARK_COLOR[mark]), mark)
+    body = TextBlock(InlineFont(rFont=MEIRYO, sz=size, color=INK), f"\n\n（{text}）")
+    cell.value = CellRichText(head, body)
 
 
-def setup_doc(d, MB, lines):
-    h = need_h(lines, 300, 9.5, YU, (6, 2, 4, 2)) + 22
-    return doc(d, 52, MB + 40, 304, h, lines, size=9.5, name="setup が配置する物", align="l")
+def lines_of(text, per_line):
+    return sum(max(1, math.ceil(len(p) / per_line)) for p in text.split("\n"))
 
 
-SETUP_HEAD = [("setup（キット側の作業。案件ごとに 1 回）が配置する物", {"bold": True})]
+def table_border(ws, top, bottom, left, right):
+    thin = Side(style="thin", color="000000")
+    for r in range(top, bottom + 1):
+        for c in range(left, right + 1):
+            ws.cell(row=r, column=c).border = Border(top=thin, bottom=thin, left=thin, right=thin)
 
 
-def edge_items(d, items):
-    """吹き出しの線の先を、枠の右端の番号にする。items の at は、話の対象の y。
-    番号どうしが重ならないよう、上から順に 24pt 以上あける。吹き出しは番号の上から順に並べる。"""
-    items = sorted(items, key=lambda it: it["at"])
-    last = -1e9
-    for it in items:
-        y = max(it.pop("at"), last + 24)
-        for k, (n, g) in enumerate(zip(it["nums"], it["gold"])):
-            badge(d, EDGE + 14, y + 22 * k, n, gold=g, size=18)
-        last = y + 22 * (len(it["nums"]) - 1)
-        it["to"] = (EDGE + 23, y)
-    return items
+def head_cell(cell, text, size=10):
+    cell.value = text
+    cell.font = Font(name=MEIRYO, sz=size, color=INK)
+    cell.fill = PatternFill("solid", fgColor=HEAD_FILL)
+    cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
 
 
-def item(nums, gold, head, body, at, keys):
-    return dict(nums=nums, gold=gold, head=head, body=body, at=at, keys=keys)
+def sheet2_cells(ws):
+    """パターンの比較表と、GSD の外の方法の表（どちらもセル）。"""
+    ws.sheet_view.showGridLines = False
+    ws.sheet_view.zoomScale = 110
+    ws.sheet_properties.tabColor = "E2EFDA"
+    widths = {"A": 1.7, "B": 4.5, "C": 20, "D": 40, "E": 40, "F": 40, "G": 40, "H": 40}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+    per_line = 21                                   # 幅 40 の列に入る、メイリオ 10 の全角の字数の目安
+    r = 2
+    head_cell(ws.cell(row=r, column=2), "No", 12)
+    head_cell(ws.cell(row=r, column=3), "観点")
+    for k, text in enumerate(COMPARE_HEAD):
+        head_cell(ws.cell(row=r, column=4 + k), text)
+    ws.row_dimensions[r].height = 76
+    for n, (view, cells) in enumerate(COMPARE_ROWS, 1):
+        r += 1
+        c = ws.cell(row=r, column=2, value=n)
+        c.font, c.alignment = Font(name=MEIRYO, sz=12), Alignment(horizontal="center", vertical="center")
+        c = ws.cell(row=r, column=3)
+        if "\n\n重要" in view:
+            name = view.replace("\n\n重要", "")
+            c.value = CellRichText(TextBlock(InlineFont(rFont=MEIRYO, sz=10, color=INK), name + "\n\n"),
+                                   TextBlock(InlineFont(rFont=MEIRYO, sz=10, b=True, color=RED), "重要"))
+        else:
+            c.value = view
+        c.font, c.alignment = Font(name=MEIRYO, sz=10, color=INK), Alignment(wrap_text=True, vertical="center", horizontal="center")
+        need = 0
+        for k, (mark, text) in enumerate(cells):
+            mark_cell(ws.cell(row=r, column=4 + k), mark, text)
+            need = max(need, lines_of(text, per_line) + (3 if mark else 0))
+        ws.row_dimensions[r].height = max(48, need * 16 + 22)
+    table_border(ws, 2, r, 2, 8)
+
+    r += 3
+    c = ws.cell(row=r, column=2, value=OUTSIDE_TITLE)
+    c.font = Font(name=MEIRYO, sz=12, color=INK)
+    r += 1
+    top = r
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=3)
+    head_cell(ws.cell(row=r, column=2), OUTSIDE_HEAD[0])
+    for k, text in enumerate(OUTSIDE_HEAD[1:]):
+        head_cell(ws.cell(row=r, column=4 + k), text)
+    ws.row_dimensions[r].height = 26
+    for name, what, (mark, result), caution in OUTSIDE_ROWS:
+        r += 1
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=3)
+        left = Alignment(wrap_text=True, vertical="center", horizontal="left")
+        for col, text in ((2, name), (4, what), (6, caution)):
+            c = ws.cell(row=r, column=col, value=text)
+            c.font, c.alignment = Font(name=MEIRYO, sz=10, color=INK), left
+        mark_cell(ws.cell(row=r, column=5), mark, result)
+        need = max(lines_of(what, per_line), lines_of(result, per_line) + 3, lines_of(caution, per_line))
+        ws.row_dimensions[r].height = max(48, need * 16 + 22)
+    table_border(ws, top, r, 2, 6)
 
 
-# ---- 図 A: agent_hint ---------------------------------------------------------------
-def figA(Y0):
-    d = Drawing(tag="own5A", name="図A agent_hint")
-    T, main, MB = skeleton(d, Y0, "図A　計画書の agent_hint で、executor を自作に置き換える", "executor だけ", GOLD,
-                           "execute-phase の executor は置き換わった。ほかのロールと /gsd-quick では置き換わらなかった")
-    sd = setup_doc(d, MB, [SETUP_HEAD,
-                           "・.claude/agents/own-a-executor.md",
-                           [("（gsd-executor.md のコピーに、名前と手順を追記した物）", {"color": SUB})],
-                           "・planner への指示（Capability の contribution）",
-                           [("  計画書の frontmatter に agent_hint: own-a-executor", {"color": PURPLE})]])
-    line(d, "read", (main, 1), (sd, 0))
-    y0 = MB + 44
-    x, w = col_x(2)
-    pl = gsd_box(d, x + 18, y0, 130, "gsd-planner", "（計画立案）")
-    card = box(d, x + 160, y0, w - 166, 74, [[("計画書 PLAN.md", {"bold": True})], [("agent_hint:", {"color": PURPLE})],
-                                               [("own-a-executor", {"color": PURPLE})]], name="計画書")
-    line(d, "write", (pl, 3), (card, 1))
-    spawn_tree(d, x + 9, MB + 30, [pl])
-    x, w = col_x(3)
-    oa = own_box(d, x + 18, y0, 190, "own-a-executor", "gsd-executor の代わりに起動。コミットと SUMMARY.md まで GSD の約束どおり")
-    gx = off_box(d, x + 18, oa.y + oa.h + 16, 190, "gsd-executor")
-    spawn_tree(d, x + 9, MB + 30, [oa])
-    rv = gsd_box(d, x + 228, y0, w - 234, "gsd-code-reviewer", "（置き換わらない）")
-    vf = gsd_box(d, x + 228, rv.y + rv.h + 10, w - 234, "gsd-verifier", "（置き換わらない）")
-    d.connector((x + 220, MB + 30), (x + 220, vf.cy), color=LINES["spawn"][0], lw=AW, tail=False, name="起こす矢印の幹")
-    for b in (rv, vf):
-        d.connector((x + 220, b.cy), (b, 1), color=LINES["spawn"][0], lw=AW, name="起こす矢印の枝")
-    badge(d, oa.x + oa.w - 4, oa.y + 4, 1, gold=True)
-    nv = cannot_box(d, x + 18, gx.y + gx.h + 18, w - 24,
-                    ["agent_hint: gsd-verifier と書いた計画書は、", "gsd-executor が実装した（verifier のロールにはならない）"], 2)
-    x, w = col_x(4)
-    q = cannot_box(d, x + 10, y0, w - 18, T_["A_quick_box"], 3)
-    lb = legend(d, 52, sd.y + sd.h + 20, ["cmd", "spawn", "write", "read", "boundary"],
-                ["colors", "doc", "ghost", "graycross", "red", "gold", "callout", "purple"])
-    bottom = finish(d, T, max(lb, nv.y + nv.h, q.y + q.h))
-    items = edge_items(d, [
-        item([1], [True], "問題点 1　置き換わるのは execute-phase の executor だけ",
-             PP(T_["A_fact1"] + "自作の executor には、gsd-executor の約束（タスクごとのコミット・SUMMARY.md）を守らせる必要がある。",
-                "planner・verifier・code-reviewer などは、この方法では置き換えられない。"),
-             oa.y + 10, ["hint123", "routing123"]),
-        item([2], [False], "問題点 2　GSD の別のロール名を書いても置き換わらない",
-             PP("agent_hint: gsd-verifier と書いた計画書は、gsd-executor が実装した。仕様の「executor 以外のロール名は拒否する」と一致した。",
-                "executor 以外のロールの置き換えには使えない。"),
-             nv.cy, ["routing123"]),
-        item([3], [False], "問題点 3　/gsd-quick では executor を置き換えられなかった",
-             PP(T_["A_quick_fact"], "quick で実装する作業には、自作の executor を使えない。"),
-             q.cy, ["routing123"]),
-    ])
-    pb = place_problems(d, items, MB - 16)
-    return d, max(bottom, pb)
+ROLE_ROWS = []          # own5_data.fill が入れる（ロール, A, B・C, D, E, 検証の名前）
+ROLE_HEAD = ["GSD のサブエージェント（ロール）", "パターンA\nagent_hint", "パターンB・C\nCapability の step", "パターンD\n既定のサブエージェントからの委任",
+             "パターンE\nメインエージェント宛ての文"]
+ROLE_NOTES = [
+    "○ = 実機で置き換わった（パターンD は、子を起動できた）。△ = 条件つき、または毎回ではない。✕ = できなかった。",
+    "パターンD の数は「子を起動できた回 / そのサブエージェントが起動された回」。",
+]
 
 
-# ---- 図 B・C: Capability の step ----------------------------------------------------
-STEP_FIRED = {"discuss:pre", "discuss:post", "plan:pre", "plan:post", "execute:pre", "wave:pre", "wave:post",
-              "execute:post", "verify:pre", "verify:post"}
+def sheet3_cells(ws):
+    """ロールごとの結果（セルの表）。印の色は ○ = 緑、△ = 金、✕ = 赤。未検証の文は灰。"""
+    ws.sheet_view.showGridLines = False
+    ws.sheet_view.zoomScale = 110
+    ws.sheet_properties.tabColor = "DDEBF7"
+    for col, w in {"A": 1.7, "B": 30, "C": 34, "D": 46, "E": 46, "F": 46}.items():
+        ws.column_dimensions[col].width = w
+    r = 2
+    for note in ROLE_NOTES:
+        c = ws.cell(row=r, column=2, value=note)
+        c.font = Font(name=MEIRYO, sz=11, color=INK)
+        r += 1
+    r += 1
+    top = r
+    for k, text in enumerate(ROLE_HEAD):
+        head_cell(ws.cell(row=r, column=2 + k), text)
+    ws.row_dimensions[r].height = 40
+    per_line = {3: 18, 4: 24, 5: 24, 6: 24}
+    wrap = Alignment(wrap_text=True, vertical="center", horizontal="left")
+    for name, *cells in ROLE_ROWS:
+        r += 1
+        c = ws.cell(row=r, column=2, value=name)
+        c.font, c.alignment = Font(name=MEIRYO, sz=10, b=True, color=INK), wrap
+        need = lines_of(name, 15)
+        for k, (color, text) in enumerate(cells[:4]):
+            c = ws.cell(row=r, column=3 + k)
+            c.font, c.alignment = Font(name=MEIRYO, sz=10, color=INK), wrap
+            if text[:1] in "○△✕":                     # 印だけに色を付け、理由は黒で書く
+                c.value = CellRichText(TextBlock(InlineFont(rFont=MEIRYO, sz=12, b=True, color=color), text[:1]),
+                                       TextBlock(InlineFont(rFont=MEIRYO, sz=10, color=INK), text[1:]))
+            else:
+                c.value = text
+                c.font = Font(name=MEIRYO, sz=10, color=color)
+            need = max(need, lines_of(text, per_line[3 + k]))
+        ws.row_dimensions[r].height = max(30, need * 16 + 10)
+    table_border(ws, top, r, 2, 6)
 
 
-def fig_step(Y0, mode):
-    tag = "own5B" if mode == "b" else "own5C"
-    d = Drawing(tag=tag, name="図B step（agent）" if mode == "b" else "図C step（fork skill）")
-    if mode == "b":
-        title = "図B　Capability の step で、自作のサブエージェントを起動する（ref.agent）"
-        why = "既定のロールを config でオフにし、同じループポイントで自作に本来の作業をさせると、後の工程がその成果物を使った"
-    else:
-        title = "図C　Capability の step で fork skill を呼び、自作のサブエージェントを起動する（ref.skill）"
-        why = "図B と同じ場所で起動され、同じ置き換えができた。違いは skill を 1 つ挟むことと、skill も配置する手間"
-    T, main, MB = skeleton(d, Y0, title, "ポイントのある所だけ", OK_GREEN, why, fired=STEP_FIRED)
-    lines_ = [SETUP_HEAD, "・.claude/agents/own-r-○○.md（自作のロール）"]
-    if mode == "c":
-        lines_ += ["・.claude/skills/ownr-○○/SKILL.md と gsd-ownr-○○/",
-                   [("  （context: fork・agent: own-r-○○）", {"color": SUB})]]
-    lines_ += ["・Capability の steps（point と ref）",
-               [("・config.json で既定のロールをオフ:", {"color": PURPLE})],
-               [("  research・pattern_mapper・plan_check・", {"color": PURPLE})],
-               [("  code_review・verifier・security_enforcement・", {"color": PURPLE})],
-               [("  nyquist_validation・ui_review・ui_phase を false", {"color": PURPLE})]]
-    sd = setup_doc(d, MB, lines_)
-    line(d, "read", (main, 1), (sd, 0))
-    y0 = MB + 44
-    sfx = " の step" if mode == "b" else " の step → skill"
-    x, w = col_x(0)
-    np_ = cannot_box(d, x + 4, y0, w - 8, ["ポイントが無い。", "project-", "researcher・", "roadmapper は", "置き換え不可"], 4)
-    x, w = col_x(1)
-    od = own_box(d, x + 18, y0, w - 22, "own-" + mode + "-discuss-○○", "pre・post で起動（追加）")
-    spawn_tree(d, x + 9, MB + 30, [od])
-    # 計画
-    x, w = col_x(2)
-    bw = 150
-    r1 = own_box(d, x + 18, y0, bw, "own-r-phase-researcher", "plan:pre" + sfx)
-    r2 = own_box(d, x + 18, r1.y + r1.h + 8, bw, "own-r-pattern-mapper", "plan:pre" + sfx)
-    pl = gsd_box(d, x + 18, r2.y + r2.h + 8, bw, "gsd-planner", "（オフにできない）")
-    r3 = own_box(d, x + 18, pl.y + pl.h + 8, bw, "own-r-plan-checker", "plan:post" + sfx)
-    ui = own_box(d, x + 18, r3.y + r3.h + 24, w - 22, "own-r-ui-researcher",
-                 "UI のフェーズ: ui_phase を false にし、plan:pre" + sfx + "。\nplanner は自作の UI-SPEC.md を読んだ")
-    spawn_tree(d, x + 9, MB + 30, [r1, r2, pl, r3, ui])
-    for b, nm in [(r1, "gsd-phase-researcher"), (r2, "gsd-pattern-mapper"), (r3, "gsd-plan-checker")]:
-        off_box(d, x + bw + 26, b.y, w - bw - 30, nm)
-    badge(d, pl.x + pl.w - 4, pl.y + 4, 5)
-    badge(d, r3.x + r3.w - 4, r3.y + 4, 6, gold=True)
-    # 実装
-    x, w = col_x(3)
-    bw = 196
-    ex = gsd_box(d, x + 18, y0, bw, "gsd-executor", "（オフにできない）")
-    rs = []
-    yy = ex.y + ex.h + 8
-    for nm, pt in [("own-r-code-reviewer", "execute:post"), ("own-r-verifier", "execute:post"),
-                   ("own-r-security-auditor", "verify:post"), ("own-r-nyquist-auditor", "verify:post"),
-                   ("own-r-ui-auditor", "verify:post")]:
-        b = own_box(d, x + 18, yy, bw, nm, pt + sfx)
-        rs.append(b)
-        yy = b.y + b.h + 6
-    spawn_tree(d, x + 9, MB + 30, [ex] + rs)
-    badge(d, ex.x + ex.w - 4, ex.y + 4, 5)
-    for b, nm in zip(rs, ["gsd-code-reviewer", "gsd-verifier", "gsd-security-auditor", "gsd-nyquist-auditor",
-                          "gsd-ui-auditor"]):
-        off_box(d, x + bw + 26, b.y, w - bw - 30, nm)
-    badge(d, rs[0].x + rs[0].w - 4, rs[0].y + 4, 7, gold=True)
-    # 人の確認
-    x, w = col_x(4)
-    ov = own_box(d, x + 18, y0, w - 22, "own-" + mode + "-verify-○○", "verify:pre で起動（追加）。verify:post は不具合が 0 件のときだけ")
-    db = cannot_box(d, x + 18, ov.y + ov.h + 14, w - 22,
-                    ["gsd-debugger と、修正の計画の", "gsd-planner・gsd-plan-checker の", "所にはポイントが無い"], 8)
-    spawn_tree(d, x + 9, MB + 30, [ov])
-    yy = legend(d, 52, sd.y + sd.h + 20, ["cmd", "spawn", "read", "boundary"],
-                ["colors", "doc", "ghost", "graycross", "red", "gold", "callout", "purple"])
-    nb = note(d, 52, yy + 6, 300, [[("ポイントの札: ", {"bold": True}),
-                                    ("青 = この方法で自作が実際に起動された所。白 = 起動されなかった所", {})]], size=9.5, name="札の見方")
-    bottom = finish(d, T, max(nb, ui.y + ui.h, rs[-1].y + rs[-1].h, db.y + db.h))
-    items = edge_items(d, [
-        item([4], [False], "問題点 4　ポイントの無いコマンドでは何もできない",
-             PP("自作が 1 回も起動されなかったコマンドは 14 個あった（表2 の下の行）。"
-                "例: new-project・ui-phase・code-review --fix・debug・map-codebase。",
-                "これらのコマンドで起動されるロールは、この方法では置き換えられない。"),
-             np_.y + 14, ["points123"]),
-        item([5], [False], "問題点 5　planner と executor はオフにできない",
-             PP("オフにするキーが無い。オフにできるロールを全部オフにした対照の回でも、gsd-planner と gsd-executor は起動された。",
-                "自作は追加になり、既定の planner・executor は必ず動く。"),
-             pl.cy, ["toggles123"]),
-        item([6], [True], "問題点 6　自作の plan-checker では、planner への差し戻しが起きない",
-             PP("既定の plan-checker は、問題があると planner に書き直させる（最大 3 回）。step の自作は計画の後に 1 回動くだけで、"
-                "planner は 1 回しか起動されなかった。",
-                "計画の修正の往復は、自作の側で組む必要がある。"),
-             r3.cy, ["steps123"]),
-        item([7], [True], "問題点 7　成果物の名前が、GSD 同梱の部品と重なる",
-             PP("step の成果物（produces）に RESEARCH.md などの本来の名前を書くと、インストールが止まった。"
-                "既定のロールをオフにしていても同じ。別の名前で宣言し、本来の名前でも書かせると通った。",
-                "宣言と実際のファイル名がずれた形で持つことになる。"),
-             rs[0].cy, ["steps123"]),
-        item([8], [False], "問題点 8　修正の往復（verify-work）のロールは置き換えられない",
-             PP("不具合を報告した verify-work では、verify:pre だけが起きた。gsd-debugger と、修正の計画の planner・plan-checker "
-                "が動く所にはポイントが無かった。",
-                "修正の往復のロールを、この方法では置き換えられない。"),
-             db.cy, ["points123"]),
-        item([9], [True], "問題点 9　自作の定義" + ("と skill" if mode == "c" else "") + "は setup で配置する",
-             PP("Capability の agents[]" + ("・skills[]" if mode == "c" else "") + " に入れた物は、.claude/ に配置されなかった。"
-                "インストールでも GSD の再インストールでも同じだった。issue #5738 は承認済みで、1.23.0 でも未実装。",
-                "案件をコピーしたら、setup と Capability の再インストールが要る。"),
-             sd.y + 30, ["agents123", "5738"]),
-    ])
-    pb = place_problems(d, items, MB - 16)
-    return d, max(bottom, pb)
+# =============================================================================================
+#  図（図形）
+# =============================================================================================
+def item_box(d, it, x, y, w, h=ITEM_H):
+    kind, name, sub = it["kind"], it["name"], it.get("sub")
+    if kind in ("off", "none"):
+        text = name.split("\n") if kind == "none" else [name, "（起動されない）"]
+        s = v4.ghost(d, x, y, w, h, [[(t, {"size": 9})] for t in text],
+                     name="できない所" if kind == "none" else "起動されない物")
+        if kind == "off":
+            d.cross(x + w - 16, y + h / 2, size=26, color=("tx1", 50, 50))
+        return s
+    head, fill, line = (("GSD のサブエージェント", GREEN, GREEN_LINE) if kind == "gsd"
+                        else ("自作のサブエージェント", BLUE, BLUE_LINE))
+    lines = [[(head, {"size": 8, "color": SUB})], [(name, {"bold": True})]]
+    if sub:
+        lines.append([(sub, {"size": 8.5, "color": SUB})])
+    return v4.box(d, x, y, w, h, lines, fill=fill, line=line, size=10, name=f"サブエージェント {name}")
 
 
-# ---- 図 D: 既定のロールが fork skill で自作の子を起動する -------------------------------------------
-def figD(Y0):
-    d = Drawing(tag="own5D", name="図D 既定のロールから委任")
-    T, main, MB = skeleton(d, Y0, "図D　既定のサブエージェントが、fork skill で自作の子を起動する（委任）", "追加・委任だけ", GOLD,
-                           "Skill を持つ 22 ロールは子を起動できた。既定のロールは必ず動き、指示が渡らない経路・従わない回もある")
-    sd = setup_doc(d, MB, [SETUP_HEAD,
-                           "・.claude/agents/own-d-○○.md（自作の子）",
-                           "・.claude/skills/ownd-○○/SKILL.md",
-                           [("  （context: fork・agent: own-d-○○）", {"color": SUB})],
-                           [("・「最初に Skill で ownd-○○ を呼ぶ」指示", {"color": PURPLE})],
-                           [("  案件の CLAUDE.md（全コマンドで渡った）、または", {"color": PURPLE})],
-                           [("  config の agent_skills（渡らないコマンドがあった）", {"color": PURPLE})]])
-    line(d, "read", (main, 1), (sd, 0))
-    y0 = MB + 44
-    pairs = [(0, ["gsd-project-researcher", "gsd-roadmapper"]), (2, ["gsd-planner", "gsd-plan-checker"]),
-             (3, ["gsd-executor", "gsd-verifier"]), (4, ["gsd-debugger"])]
-    first = {}
-    lows = []
-    for ci, roles in pairs:
-        x, w = col_x(ci)
-        bw = w - 22 if ci not in (2, 3) else 170
-        yy = y0
-        parents = []
-        for r in roles:
-            p = gsd_box(d, x + 18, yy, bw, r)
-            ind = 8
-            c = own_box(d, x + 18 + ind, p.y + p.h + 18, bw - ind, "own-d-" + r[4:], "fork skill の子")
-            line(d, "spawn", (p.x + ind + (bw - ind) / 2, p.y + p.h), (c, 0))
-            parents.append(p)
-            first[r] = p
-            yy = c.y + c.h + 16
-        lows.append(yy)
-        spawn_tree(d, x + 9, MB + 30, parents)
-    x, w = col_x(3)
-    ns = cannot_box(d, x + 200, y0, w - 204, ["Skill の道具が無い 14 ロールは、", "子を起動できない",
-                                              "（例: pattern-mapper・dom-verifier・", "doc-verifier・debug-session-manager）"], 10)
-    pc, dbg, pr = first["gsd-plan-checker"], first["gsd-debugger"], first["gsd-project-researcher"]
-    badge(d, pc.x + pc.w - 4, pc.y + 4, 11, gold=True)
-    badge(d, dbg.x + dbg.w - 4, dbg.y + 4, 12, gold=True)
-    badge(d, pr.x + pr.w - 4, pr.y + 4, 12, gold=True)
-    badge(d, sd.x + sd.w - 8, sd.y + 8, 13, gold=True)
-    lb = legend(d, 52, sd.y + sd.h + 20, ["cmd", "spawn", "read", "boundary"],
-                ["colors", "doc", "ghost", "red", "gold", "callout", "purple"])
-    bottom = finish(d, T, max([lb] + lows))
-    items = edge_items(d, [
-        item([13], [True], "問題点 13　既定のロールは必ず動く（置き換えではなく委任）",
-             PP("子が作業をしても、既定のロールは起動され、自分のルール（成果物の形式・コミット）で最後まで動いた。",
-                "既定のロールのルールと、子にさせたいルールがぶつかる所は残る。"),
-             sd.y + 20, []),
-        item([12], [True], "問題点 12　agent_skills が渡らないコマンドがある",
-             PP("agent_skills の指示が依頼文に入らなかった: new-project（defaults.json に書いても config に引き継がれない）・quick・"
-                "verify-work・code-review --fix・debug・ingest-docs・secure-phase・validate-phase。案件の CLAUDE.md なら全コマンドで渡った。",
-                "agent_skills だけに頼ると、指示が渡らないロールがある。"),
-             pr.y + 14, ["skills123"]),
-        item([11], [True], "問題点 11　指示に従わない回がある",
-             PP(T_["D_comply"], "ルールを子に任せる形は、毎回は効かない。"),
-             pc.cy, []),
-        item([10], [False], "問題点 10　Skill の道具が無いロールは、子を起動できない",
-             PP("36 ロールのうち Skill を持つのは 22 ロール。持たない 14 ロール（doc-verifier・doc-classifier・doc-synthesizer・"
-                "framework-selector・ai-researcher・domain-researcher・eval-planner・pattern-mapper・dom-verifier・"
-                "behavior-verifier・debug-session-manager など）は、指示を読んでも子を起動しなかった。"
-                "security-auditor・nyquist-auditor は tools の欄がリストの形だが Skill を持ち、CLAUDE.md の指示で子を起動した。",
-                T_["D_tools_red"]),
-             ns.cy, ["skills123"]),
-    ])
-    pb = place_problems(d, items, MB - 16)
-    return d, max(bottom, pb)
+def draw_column(d, col, items, Y0, side, numbers):
+    """1 つのコマンドの列を描く。上から、コマンド → メインエージェント → 起動される物。"""
+    _, cx, cw, cmd, sub = col
+    chev = d.shape(cx, Y0 + 20, cw, 61, "homePlate", fill=GREEN, line=GREEN_LINE, lw=0.75, adj=18000,
+                   text=[[(cmd, {"bold": True})], sub], size=11, font=YU, color="000000", ins=(2, 0, 9, 2), name=cmd)
+    ax = chev.site(2)[0]
+    v4.line(d, "cmd", (chev, 2), (ax, Y0 + 144))
+    v4.number(d, ax + 4, Y0 + 108, f"({next(numbers)})")
+    spawned = [it for it in items if it["kind"] in ("gsd", "own")]
+    if not items:
+        return
+    bar_bottom = Y0 + 185
+    if spawned:
+        label = f"({next(numbers)})"
+    if side:                                         # 2 つを横に並べ、それぞれメインエージェントから直に起動する
+        w = (cw - 36) / 2
+        for k, it in enumerate(items):
+            x = cx + 12 + k * (w + 12)
+            s = item_box(d, it, x, Y0 + ITEM_TOP, w)
+            v4.line(d, "spawn", (s.site(0)[0], bar_bottom), (s, 0))
+            if k == 0:
+                v4.number(d, s.site(0)[0] + 4, bar_bottom + 6, label)
+            draw_child(d, it, s, x, Y0 + ITEM_TOP, w)
+        return
+    if len(items) == 1:
+        it = items[0]
+        w = min(cw - 24, 190)
+        x = cx + (cw - w) / 2
+        s = item_box(d, it, x, Y0 + ITEM_TOP, w)
+        if spawned:
+            v4.line(d, "spawn", (s.site(0)[0], bar_bottom), (s, 0))
+            v4.number(d, s.site(0)[0] + 4, bar_bottom + 6, label)
+        draw_child(d, it, s, x, Y0 + ITEM_TOP, w)
+        return
+    tx, x, w = cx + 14, cx + 34, cw - 46                 # 縦に並べ、幹から枝で入れる
+    last = None
+    for k, it in enumerate(items):
+        y = Y0 + ITEM_TOP + k * (ITEM_H + ITEM_GAP)
+        s = item_box(d, it, x, y, w)
+        if it["kind"] in ("gsd", "own"):
+            last = s
+            d.connector((tx, s.site(1)[1]), (s, 1), color=LINES["spawn"][0], lw=LINES["spawn"][1], name="起こす矢印の枝")
+    if last is not None:
+        d.connector((tx, bar_bottom), (tx, last.site(1)[1]), color=LINES["spawn"][0], lw=LINES["spawn"][1], tail=False,
+                    name="起こす矢印の幹")
+        v4.number(d, tx + 4, bar_bottom + 6, label)
 
 
-# ---- 図 E: メイン宛ての文 ---------------------------------------------------------------
-E_FIRED = {"discuss:pre", "discuss:post", "verify:pre", "verify:post"}
+def draw_child(d, it, parent, x, y, w):
+    """既定のサブエージェントが起動する自作の子（パターンD）と、書く計画書（パターンA）。"""
+    if it.get("child"):
+        child = item_box(d, O(it["child"], "fork skill の子"), x, y + ITEM_H + 24, w)
+        v4.line(d, "spawn", (parent, 2), (child, 0))
+    if it.get("doc"):
+        lines = [[(it["doc"][0], {"bold": True})]] + [[(t, {"color": v4.PURPLE})] for t in it["doc"][1:]]
+        paper = v4.doc(d, x, y + ITEM_H + 24, w, 56, lines, size=9, name="計画書")
+        v4.line(d, "write", (parent, 2), (paper, 0))
 
 
-def figE(Y0):
-    d = Drawing(tag="own5E", name="図E メイン宛ての文")
-    T, main, MB = skeleton(d, Y0, "図E　メイン宛ての文（contribution の orchestrator）で、自作を起動させる", "discuss・verify・ship の 6 か所だけ", GOLD,
-                           "文を入れられるのは discuss・verify・ship の前後の 6 か所だけ。plan と execute ではインストールで止まる",
-                           fired=E_FIRED)
-    sd = setup_doc(d, MB, [SETUP_HEAD,
-                           "・.claude/agents/own-e-○○.md（自作のロール）",
-                           "・Capability の contributions",
-                           [('  into: "orchestrator"', {"color": PURPLE})],
-                           [("  「ここで own-e-○○ を起動する」（追加）", {"color": PURPLE})],
-                           [("  「gsd-○○ の代わりに own-e-○○ を起動する」（置き換え）", {"color": PURPLE})]])
-    line(d, "read", (main, 1), (sd, 0))
-    y0 = MB + 44
-    x, w = col_x(1)
-    o1 = own_box(d, x + 18, y0, w - 22, "own-e-discuss-○○", "pre・post で起動（追加）")
-    spawn_tree(d, x + 9, MB + 30, [o1])
-    pc = None
-    for ci in (2, 3):
-        x, w = col_x(ci)
-        c = cannot_box(d, x + 22, y0, w - 28, ["plan・execute のポイントには、", "メイン宛ての文を入れられない",
-                                                "（インストールで止まった）"], 14)
-        pc = pc or c
-    x, w = col_x(3)
-    o3 = own_box(d, x + 18, y0 + 90, w - 22, "own-e-verify-post", T_["E_exec_sub"])
-    d.connector((x + 9, MB + 30), (x + 9, o3.cy), color=LINES["spawn"][0], lw=AW, tail=False, name="起こす矢印の幹")
-    d.connector((x + 9, o3.cy), (o3, 1), color=LINES["spawn"][0], lw=AW, name="起こす矢印の枝")
-    x, w = col_x(4)
-    o4 = own_box(d, x + 18, y0, w - 22, "own-e-verify-○○", "verify:pre・verify:post で起動（追加）")
-    rep = own_box(d, x + 18, o4.y + o4.h + 14, w - 22, "own-e-debugger・planner・plan-checker",
-                  "gsd-debugger・gsd-planner・gsd-plan-checker の代わりに起動された（置き換え）")
-    spawn_tree(d, x + 9, MB + 30, [o4, rep])
-    badge(d, rep.x + rep.w - 4, rep.y + 4, 15, gold=True)
-    lb = legend(d, 52, sd.y + sd.h + 20, ["cmd", "spawn", "read", "boundary"],
-                ["colors", "doc", "ghost", "red", "gold", "callout", "purple"])
-    bottom = finish(d, T, max(lb, rep.y + rep.h, o3.y + o3.h))
-    items = edge_items(d, [
-        item([14], [False], "問題点 14　plan と execute では使えない",
-             PP("into: orchestrator の文は、plan:pre・plan:post・execute の 4 か所ではインストールが止まった"
-                "（orchestrator は agentRoles に無い）。discuss・verify・ship の前後の 6 か所だけ入った。",
-                "計画と実装の間のロールを、この方法では起動できない（execute-phase の最後の verify:post だけは入る）。"),
-             pc.cy, ["points123"]),
-        item([15], [True], "問題点 15　置き換えは、メインが文に従うかしだい",
-             PP(T_["E_rep"], "文に従うかはメインの判断で、仕組みとしての保証は無い。"),
-             rep.cy, []),
-    ])
-    pb = place_problems(d, items, MB - 16)
-    return d, max(bottom, pb)
+def legend(d, x, y, kinds):
+    with d.group("凡例"):
+        d.text(x, y, 120, 18, "凡例", size=11, font=UD, color=INK, bold=True, name="凡例の見出し")
+        y += 22
+        for kind in kinds:
+            v4.line(d, kind, (x, y + 9), (x + 34, y + 9), tail=kind != "boundary")
+            d.text(x + 40, y, 290, 18, LINES[kind][3], size=9.5, font=UD, color=INK, name="凡例の文")
+            y += 19
+        d.shape(x, y + 2, 16, 14, "roundRect", fill=GREEN, line=GREEN_LINE, lw=0.75, adj=8000, name="凡例の箱")
+        d.shape(x + 18, y + 2, 16, 14, "roundRect", fill=BLUE, line=BLUE_LINE, lw=0.75, adj=8000, name="凡例の箱")
+        d.text(x + 40, y, 290, 18, "緑の箱 = GSD の物　青の箱 = 自作の物", size=9.5, font=UD, color=INK, name="凡例の文")
+        y += 19
+        d.shape(x, y + 2, 34, 14, "flowChartDocument", fill=BLUE, line=BLUE_LINE, lw=0.75, dash="dash", name="凡例の箱")
+        d.text(x + 40, y, 290, 18, "書類の形 = 読む物・書く物（setup が配置する物・計画書）", size=9.5, font=UD, color=INK, name="凡例の文")
+        y += 19
+        d.shape(x, y + 2, 34, 14, "roundRect", fill=v4.GHOST_FILL, line=v4.GHOST_LINE, lw=1, dash="dash", adj=8000,
+                name="凡例の箱")
+        d.text(x + 40, y, 290, 18, "灰の点線の箱 = 起動されない物・できない所", size=9.5, font=UD, color=INK, name="凡例の文")
+    return y + 19
 
 
-# ---- 表 1: ロールごとの結果 -----------------------------------------------------------------
-ROLE_ROWS = []
-ROLE_COLS = [("ロール（GSD のサブエージェント）", 220), ("A agent_hint", 190), ("B・C Capability の step", 300),
-             ("D 既定のロールから委任", 270), ("E メイン宛ての文", 240), ("実機の検証（コピーの名前）", 230)]
+def figure(p, Y0):
+    d = Drawing(tag="own5" + p["key"], name="パターン" + p["key"])
+    d.shape(FX, Y0, FW, FH, "rect", fill=None, line="1F2937", lw=1.5, name="図の枠")
+    d.text(FX + 44, Y0 + 82, 170, 20, "人（入力するコマンド）", size=11, font=UD, color=SUB, name="段の名前")
+    d.connector((FX + 22, Y0 + 104), (FX + FW - 12, Y0 + 104), color="A6A6A6", lw=1, tail=False, name="区切り線")
+    d.text(FX + 44, Y0 + 108, 120, 20, "裏側の処理", size=11, font=UD, color=SUB, name="段の名前")
+    v4.box(d, BAR_X, Y0 + 144, BAR_W, 41, ["メインエージェント"], size=14, name="メインエージェント")
+    with d.group("コマンドごとの境目"):
+        for _, cx, _, _, _ in CMDS[1:]:
+            v4.line(d, "boundary", (cx - 6, Y0 + 8), (cx - 6, Y0 + 140), tail=False)
+            v4.line(d, "boundary", (cx - 6, Y0 + 190), (cx - 6, Y0 + FH - 148), tail=False)
+    numbers = iter(range(1, 40))
+    for col in CMDS:
+        draw_column(d, col, p["cols"].get(col[0], []), Y0, col[0] in p.get("side", ()), numbers)
+
+    lines = [[("setup が配置する物（案件ごとに 1 回）", {"bold": True})]] + p["setup"]
+    h = 30 + 14 * len(p["setup"])
+    paper = v4.doc(d, FX + 22, Y0 + 132, 306, h, lines, size=9, name="setup が配置する物", align="l")
+    v4.line(d, "read", (BAR_X, Y0 + 164), (paper.site(3)[0], Y0 + 164))
+    kinds = ["cmd", "spawn", "read"] + (["write"] if p["key"] == "A" else []) + ["boundary"]
+    legend(d, FX + 22, Y0 + 132 + h + 26, kinds)
+
+    text = [[("ポイント）", {"bold": True})]] + p["points"]
+    d.shape(FX + 372, Y0 + FH - 136, FW - 392, 120, "rect", fill=POINT_FILL, line=POINT_LINE, lw=1, text=text, size=11,
+            font="Meiryo", color="000000", align="l", anchor="t", ins=(8, 5, 8, 5), name="吹き出し 要点")
+    return d
 
 
-def table_head(d, x0, y, cols, size=11):
-    cx = x0
-    for title, w in cols:
-        d.shape(cx, y, w, 30, "rect", fill=("bg2",), line="A6A6A6", lw=0.75, text=[[(title, {"bold": True})]],
-                size=size, font=UD, color="000000", ins=(2, 0, 2, 0), name="表の見出し")
-        cx += w
-    return y + 30
-
-
-def role_table(Y0):
-    d = Drawing(tag="own5T1", name="ロールごとの結果")
-    d.text(26, Y0, 1500, 40, "表1　ロールごとに、5 つの方法で自作に置き換えられたか（GSD 1.23.0 の実機の結果）", size=24, font=None,
-           color="000000", wrap="none", name="見出し")
-    note(d, 34, Y0 + 40, 1450,
-         ["○ = 実機で置き換わった（D は子を起動できた）。△ = 条件つき、または毎回ではない。✕ = 実機でできなかった。",
-          "D は置き換えではなく、既定のロールの中からの委任。数は「子を起動できた回 / ロールが起動された回」。",
-          "右端の列は検証用コピーの名前（削除済み）。根拠は会話の記録 ~/.claude/projects/…trials-v2-own-<名前> を開く。",
-          "Claude Code の hook で差し替える方法（表4 の F）はロールに依らず効くので、この表の列にはしていない。"],
-         size=11, name="表の見方")
-    x0, y = 34, Y0 + 120
-    with d.group("表1"):
-        y = table_head(d, x0, y, ROLE_COLS)
-        for row in ROLE_ROWS:
-            cells = [(INK, cell(row[0]))] + [(c, cell(t)) for c, t in row[1:5]] + [(SUB, cell(row[5]))]
-            rh = max(32, max(need_h(t, w, 9.5, UD, (6, 2, 4, 2)) for (_, t), (_, w) in zip(cells, ROLE_COLS)) + 6)
-            cx = x0
-            for (color, t), (_, w) in zip(cells, ROLE_COLS):
-                d.shape(cx, y, w, rh, "rect", fill="FFFFFF", line="A6A6A6", lw=0.75, text=t, size=9.5, font=UD,
-                        color=color, align="l", anchor="ctr", ins=(6, 2, 4, 2), name="表のセル")
-                cx += w
-            y += rh
-    return d, y + 20
-
-
-# ---- 表 2: コマンドごとに起きたポイント -----------------------------------------------------------
-PT_COLS = ["discuss:pre", "discuss:post", "plan:pre", "plan:post", "execute:pre", "wave:pre", "wave:post", "execute:post",
-           "verify:pre", "verify:post", "ship:pre", "ship:post"]
-FIRE_ROWS = []
-
-
-def fire_table(Y0):
-    d = Drawing(tag="own5T2", name="ポイントの表")
-    d.text(26, Y0, 1500, 40, "表2　コマンドごとに、自作のサブエージェントが起動されたループポイント（B・C・E の土台）", size=24,
-           font=None, color="000000", wrap="none", name="見出し")
-    note(d, 34, Y0 + 40, 1450,
-         ["B = step（agent）、C = step（fork skill）、E = メイン宛ての文。書いてある記号の方法で、自作が実際に起動された。",
-          "空欄 = 起動されなかった。E の文は discuss・verify・ship の前後にしか入らない。",
-          "A（agent_hint）と D（既定のロールからの委任）はループポイントを使わないので、この表には出ない。"], size=11, name="表の見方")
-    x0 = 34
-    cw = [250] + [72] * len(PT_COLS) + [340]
-    heads = ["コマンド（検証の条件）"] + PT_COLS + ["注"]
-    y = Y0 + 104
-    with d.group("表2"):
-        y = table_head(d, x0, y, list(zip(heads, cw)), size=9)
-        for cmd, marks, nt in FIRE_ROWS:
-            cmd_t, nt_t = cell(cmd), cell(nt) if nt else ""
-            h = max(30, need_h(nt_t, cw[-1], 9.5, UD, (6, 2, 4, 2)) + 6 if nt else 30,
-                    need_h(cmd_t, cw[0], 9.5, UD, (6, 2, 4, 2)) + 6)
-            cx = x0
-            d.shape(cx, y, cw[0], h, "rect", fill="FFFFFF", line="A6A6A6", lw=0.75, text=cmd_t, size=9.5, font=UD,
-                    color=INK, align="l", ins=(6, 2, 4, 2), name="表のセル")
-            cx += cw[0]
-            for p, w in zip(PT_COLS, cw[1:-1]):
-                m = marks.get(p, "")
-                d.shape(cx, y, w, h, "rect", fill=("accent1", 20, 80) if m else "FFFFFF", line="A6A6A6", lw=0.75,
-                        text=m, size=9.5, font=UD, color=INK, ins=(1, 0, 1, 0), name="表のセル")
-                cx += w
-            d.shape(cx, y, cw[-1], h, "rect", fill="FFFFFF", line="A6A6A6", lw=0.75, text=nt_t, size=9.5, font=UD,
-                    color=SUB, align="l", ins=(6, 2, 4, 2), name="表のセル")
-            y += h
-    return d, y + 20
-
-
-# ---- 表 3・表 4: 文字だけの表（列と行は own5_data が入れる） --------------------------------------------
-# 1 つの表 = dict(tag, name, title, notes, cols=[(見出し, 幅)], rows=[[(色, 文), ...]]). 文の色は INK/OK_GREEN/GOLD/RED/SUB。
-TEXT_TABLES = []
-
-
-def text_table(spec, Y0):
-    d = Drawing(tag=spec["tag"], name=spec["name"])
-    d.text(26, Y0, 1500, 40, spec["title"], size=24, font=None, color="000000", wrap="none", name="見出し")
-    y = Y0 + 44
-    if spec.get("notes"):
-        note(d, 34, y, 1450, spec["notes"], size=11, name="表の見方")
-        y += 16 * len(spec["notes"]) + 18
-    x0 = 34
-    with d.group(spec["name"]):
-        y = table_head(d, x0, y, spec["cols"], size=spec.get("head_size", 11))
-        for row in spec["rows"]:
-            # 空のセルは "" にする（空の list だと txBody に段落が無くなり、Excel が「問題が見つかった」と修復を求める）
-            cells = [(c, cell(t) if t else "") for c, t in row]
-            rh = max(32, max(need_h(t, w, 9.5, UD, (6, 2, 4, 2)) for (_, t), (_, w) in zip(cells, spec["cols"]) if t) + 6)
-            cx = x0
-            for (color, t), (_, w) in zip(cells, spec["cols"]):
-                d.shape(cx, y, w, rh, "rect", fill="FFFFFF", line="A6A6A6", lw=0.75, text=t, size=9.5, font=UD,
-                        color=color, align="l", anchor="ctr", ins=(6, 2, 4, 2), name="表のセル")
-                cx += w
-            y += rh
-    return d, y + 20
-
-
-CONCLUSION = []
-HEAD_CONCLUSION = []
-VERIFY_NOTE = []
-
-
-def conclusion(Y0):
-    d = Drawing(tag="own5T3", name="結論")
-    with d.group("結論"):
-        h = need_h(CONCLUSION, 1450, 11, UD, (10, 4, 8, 4)) + 8
-        d.shape(34, Y0, 1450, h, "rect", fill=("accent2", 20, 80), line=("accent2",), lw=1, text=CONCLUSION,
-                size=11, font=UD, color="000000", align="l", anchor="ctr", ins=(10, 4, 8, 4), name="結論")
-    return d, Y0 + h + 20
-
-
-TERMS = ["GSD: AI に計画書を書かせてから実装させるツール。メイン: 人と話す AI。",
-         "サブエージェント（ロール）: メインが起動して作業を任せる別の AI。既定のロールは gsd-○○ という名前で 36 種類ある。",
-         "Capability: GSD に処理を追加する正式な部品。",
-         "ループポイント: Capability の処理が挿入される場所（plan:pre など）。",
-         "step: ループポイントでメインに起動させるサブエージェントか skill。contribution: ロールやメインへの依頼文に追記する文。",
-         "fork skill: 呼ぶと、指定のサブエージェントを子として起動する skill。",
-         "agent_skills: GSD の設定で、ロールに skill を渡す欄。",
-         "setup: 案件ごとに 1 回、キットの部品を .claude/ などに配置する作業。",
-         "autonomous: /gsd-autonomous。フェーズごとに相談→計画→実装を、人に聞かずにメインが順に進めるコマンド。",
-         "--auto: 相談のコマンドに付けると、そのフェーズの計画→実装まで自動でつなぐ。",
-         "hook: Claude Code の仕組み。道具の呼び出しの前後やサブエージェントの起動時に、決めたスクリプトを動かす。"]
-
-
-def head():
-    d = Drawing(tag="own5head", name="頭書き")
-    d.text(26, 0, 1500, 44, "GSD で自作のサブエージェントを起動する 5 つの方法 ― GSD 1.23.0 の実機で確認した結果", size=26,
-           font=None, color="000000", wrap="none", name="見出し")
-    y = note(d, 26, 46, 1500, HEAD_CONCLUSION, size=12, name="見出し（結論）") + 10
-    y = note(d, 26, y, 1500, TERMS, size=10.5, name="見出し（用語）") + 10
-    y = note(d, 26, y, 1500, VERIFY_NOTE, size=10.5, color="595959", name="見出し（検証の方法）")
-    return d, y + 30
-
-
-# ---- 書き込み -------------------------------------------------------------------------------
-def strip_all(src, tmp, sheet_name):
-    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
-        for info in zin.infolist():
-            data = zin.read(info.filename)
-            if info.filename == "xl/drawings/drawing1.xml":
-                x = data.decode("utf-8")
-                x = re.sub(r'<xdr:(twoCellAnchor|absoluteAnchor|oneCellAnchor)\b.*?</xdr:\1>', "", x, flags=re.S)
-                data = x.encode("utf-8")
-            elif info.filename == "xl/drawings/_rels/drawing1.xml.rels":
-                data = re.sub(r'<Relationship Id="rIdX[^"]*"[^>]*/>', "", data.decode("utf-8")).encode("utf-8")
-            elif info.filename == "xl/workbook.xml":
-                data = re.sub(r'(<sheet [^>]*name=")[^"]+(")', r"\g<1>" + sheet_name + r"\g<2>", data.decode("utf-8"),
-                              count=1).encode("utf-8")
-            elif info.filename == "docProps/app.xml":
-                data = re.sub(r"<vt:lpstr>理想から今の形まで</vt:lpstr>", f"<vt:lpstr>{sheet_name}</vt:lpstr>",
-                              data.decode("utf-8")).encode("utf-8")
-            zout.writestr(info, data)
-
-
-def build(src, dst):
-    grid = measure_grid(src)
-    tmp = dst + ".tmp.xlsx"
-    strip_all(src, tmp, "自作サブエージェントの起動方法")
-    hd, y = head()
-    parts = [hd]
-    spans = []
-    for fn in (figA, lambda Y: fig_step(Y, "b"), lambda Y: fig_step(Y, "c"), figD, figE):
-        d, b = fn(y)
-        parts.append(d)
-        spans.append((y, b))
-        y = b + 50
-    tails = [role_table, fire_table] + [(lambda Y, s=s: text_table(s, Y)) for s in TEXT_TABLES] + [conclusion]
-    for fn in tails:
-        d, b = fn(y)
-        parts.append(d)
-        spans.append((y, b))
-        y = b + 30
-    row = int(y * 12700 // grid.row_h) + 2
-
-    def edit(sheet):
-        sheet = re.sub(r'<row r="\d+" spans="2:2"><c r="B\d+" t="s"><v>0</v></c></row>',
-                       f'<row r="{row}" spans="2:2"><c r="B{row}" t="s"><v>0</v></c></row>', sheet)
-        return re.sub(r'<dimension ref="[^"]*"/>', f'<dimension ref="B{row}"/>', sheet)
-    write_into(tmp, dst, parts, grid=grid, sheet_edit=edit)
+# =============================================================================================
+def build(theme_src, dst):
+    wb = new_workbook(theme_src)
+    ws1 = wb.active
+    ws1.title = SHEETS[0]
+    rows, tops = sheet1_cells(ws1)
+    sheet2_cells(wb.create_sheet(SHEETS[1]))
+    sheet3_cells(wb.create_sheet(SHEETS[2]))
+    tmp = dst + ".cells.xlsx"
+    wb.save(tmp)
+    part = ensure_drawing(tmp, tmp)
+    drawings = [figure(p, y) for p, y in zip(PATTERNS, tops)]
+    write_into(tmp, dst, drawings, drawing_part=part, grid=rows.grid())
     os.remove(tmp)
-    return spans
+    return tops
 
 
 if __name__ == "__main__":
     sys.path.insert(0, HERE)
     import own5_data
-    own5_data.fill(sys.modules[__name__])
-    spans = build(sys.argv[1], sys.argv[2])
+
+    class Shim:           # own5_data.fill が書き込む先（ロールごとの表だけを使う）
+        OK_GREEN, GOLD, RED, SUB, INK = OK_GREEN, GOLD, RED, SUB, INK
+        T_, ROLE_ROWS, FIRE_ROWS, HEAD_CONCLUSION, VERIFY_NOTE, CONCLUSION, TEXT_TABLES = {}, [], [], [], [], [], []
+
+    own5_data.fill(Shim)
+    ROLE_ROWS[:] = Shim.ROLE_ROWS
+    tops = build(sys.argv[1], sys.argv[2])
     print(f"書きました: {sys.argv[2]}")
-    names = ["図A", "図B", "図C", "図D", "図E", "表1", "表2"] + [s["name"] for s in TEXT_TABLES] + ["結論"]
-    for n, (a, b) in zip(names, spans):
-        print(f"  {n}: y {a:.0f}〜{b:.0f}")
+    for p, y in zip(PATTERNS, tops):
+        print(f"  パターン{p['key']}: y {y:.0f}〜{y + FH:.0f}")
