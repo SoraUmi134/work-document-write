@@ -55,6 +55,7 @@ CONCLUSIONS = [
     "[3] パターンD・E は、既定のサブエージェントやメインエージェントに自作の起動を任せる形で、毎回は効かない",
     "[4] どのパターンでも、自作のサブエージェントの定義は、案件ごとの setup で .claude/ に配置する必要がある",
     "[5] GSD の外の仕組み（Claude Code の hook）を使うと、全部のサブエージェントを置き換えられる（シート 2 の参考）",
+    "[6] /gsd-autonomous（人に聞かずに自動で進めるコマンド）でも、パターンA・B・D はそのまま使える。パターンC・E は一部が違う",
 ]
 TERMS = [
     "言葉）メインエージェント = 人と話し、コマンドの手順どおりにサブエージェント（作業を任せる別の AI）を起動する AI。",
@@ -102,7 +103,7 @@ STEP_COLS = lambda arrow: {  # noqa: E731  パターンB・C の列（arrow は�
 }
 
 PATTERNS = [
-    dict(key="A", title="パターンA（計画書の agent_hint で、gsd-executor を自作に置き換える）",
+    dict(key="A", auto=('○', '使える（単独のコマンドと同じに起動される）', '使える。単独のコマンドと同じに、own-executor が起動される。'), title="パターンA（計画書の agent_hint で、gsd-executor を自作に置き換える）",
          verdict="結果）△　置き換えられるのは、/gsd-execute-phase の gsd-executor だけ。",
          setup=[".claude/agents/own-executor.md", "gsd-planner への指示:", "「計画書に agent_hint: own-executor を書く」"],
          cols={"plan": [G("gsd-planner", doc=["計画書 PLAN.md", "agent_hint: own-executor"])],
@@ -112,7 +113,7 @@ PATTERNS = [
          points=["① 置き換わるのは、/gsd-execute-phase の gsd-executor だけ（4 回中 4 回）。",
                  "② agent_hint に gsd-verifier など別のサブエージェントの名前を書いても、置き換わらない。",
                  "③ /gsd-quick の実装では、gsd-executor が起動された（置き換わらない）。"]),
-    dict(key="B", title="パターンB（Capability の step で、ループポイントに自作を起動する）",
+    dict(key="B", auto=('○', '使える（計画と実装の中は、単独のコマンドと同じ）', '使える。計画と実装の中は、単独のコマンドと同じに起動される。相談の discuss:pre・post だけ起動されない。'), title="パターンB（Capability の step で、ループポイントに自作を起動する）",
          verdict="結果）△〜○　ループポイントのある所は置き換えられる。gsd-planner と gsd-executor は置き換えられない。",
          setup=[".claude/agents/own-○○.md", "capability.json の steps:", '  { "point": "plan:pre",',
                 '    "ref": { "agent": "own-researcher" } }', "config.json で既定のサブエージェントをオフ:",
@@ -121,7 +122,7 @@ PATTERNS = [
          points=["① 自作を起動できるのは、ループポイントのあるコマンドだけ。/gsd-new-project など 14 コマンドには無い。",
                  "② config.json で既定のサブエージェントをオフにすると置き換えになる。gsd-planner・gsd-executor はオフにできない。",
                  "③ step に止める力は無い。自作の plan-checker が問題を見つけても、gsd-planner への差し戻しは起きない。"]),
-    dict(key="C", title="パターンC（Capability の step が fork skill を呼び、skill が自作を起動する）",
+    dict(key="C", auto=('△', '使える（ただし plan:pre の skill が 2 回動く）', '使える。起動される場所はパターンB と同じ。ただし plan:pre の skill が 2 回動く。'), title="パターンC（Capability の step が fork skill を呼び、skill が自作を起動する）",
          verdict="結果）△〜○　起動される場所と置き換えられる範囲は、パターンB と同じ。",
          setup=[".claude/agents/own-○○.md", ".claude/skills/own-○○/SKILL.md", "  （context: fork・agent: own-○○）",
                 "capability.json の steps:", '  { "point": "plan:pre",', '    "ref": { "skill": "own-researcher" } }',
@@ -130,7 +131,7 @@ PATTERNS = [
          points=["① パターンB との違いは、step が skill を呼び、その skill が自作を子として起動すること。",
                  "② skill も setup で .claude/skills/ に配置する（Capability に入れても配置されない）。",
                  "③ /gsd-autonomous では、plan:pre の skill が 2 回動く。"]),
-    dict(key="D", title="パターンD（GSD の既定のサブエージェントが、fork skill で自作の子を起動する）",
+    dict(key="D", auto=('○', '使える（起動された 8 体の全部が子を起動した）', '使える。指示を案件の CLAUDE.md で渡すと、起動された 8 体の全部が子を起動した。'), title="パターンD（GSD の既定のサブエージェントが、fork skill で自作の子を起動する）",
          verdict="結果）△　置き換えではない。既定のサブエージェントは必ず動き、作業の一部を自作の子に任せる形。",
          setup=[".claude/agents/own-○○.md（自作の子）", ".claude/skills/own-○○/SKILL.md（fork skill）",
                 "既定のサブエージェントへの指示:", "「最初に Skill で own-○○ を呼ぶ」",
@@ -142,7 +143,7 @@ PATTERNS = [
          points=["① 既定のサブエージェントは必ず動く。子が作業をしても、自分のルールで最後まで動く。",
                  "② 子を起動できるのは、Skill の道具を持つ 22 体だけ。残りの 14 体には、config の agent_tools で道具を追加する。",
                  "③ 指示に従わない回がある（gsd-plan-checker は 6 回中 3 回）。"]),
-    dict(key="E", title="パターンE（Capability の文でメインエージェントに頼み、自作を起動させる）",
+    dict(key="E", auto=('△', '一部だけ（実装の最後の verify:post だけ）', '一部だけ。起動されるのは実装の最後の verify:post だけで、相談の文は渡らない。'), title="パターンE（Capability の文でメインエージェントに頼み、自作を起動させる）",
          verdict="結果）△　使えるのは discuss・verify・ship の前後だけ。メインエージェントが文に従う保証は無い。",
          setup=[".claude/agents/own-○○.md", "capability.json の contributions:", '  { "point": "verify:pre",',
                 '    "into": "orchestrator", … }', "文の例:", "「gsd-debugger の代わりに own-debugger を起動する」"],
@@ -178,6 +179,13 @@ COMPARE_ROWS = [
         ("○", "全部のコマンド（指示を案件の CLAUDE.md で渡した場合）。agent_skills で渡すと、渡らないコマンドがある"),
         ("△", "discuss・verify・ship の前後の 6 か所だけ。plan と execute には文を入れられない"),
     ]),
+    ("/gsd-autonomous（人に聞かずに自動で進めるコマンド）で使えるか\n\n重要", [
+        ("○", "使える。単独のコマンドと同じに起動される"),
+        ("○", "使える。計画と実装の中は単独のコマンドと同じ。相談（smart discuss）の discuss:pre・post だけ起動されない"),
+        ("△", "使える。パターンB と同じ。ただし plan:pre の skill が 2 回動く"),
+        ("○", "使える。指示を案件の CLAUDE.md で渡すと、起動された 8 体の全部が子を起動した"),
+        ("△", "一部だけ。実装の最後の verify:post だけ起動される。相談の文は渡らない"),
+    ]),
     ("毎回、設定どおりに動くか\n\n重要", [
         ("○", "4 回中 4 回。GSD の手順書が agent_hint を読んで振り分ける"),
         ("○", "ループポイントのある所では毎回起動された。ただし step に止める力は無い"),
@@ -198,13 +206,6 @@ COMPARE_ROWS = [
         ("", "自作のサブエージェントの定義と skill"),
         ("", "自作のサブエージェントの定義と skill、既定のサブエージェントへの指示の文"),
         ("", "自作のサブエージェントの定義"),
-    ]),
-    ("/gsd-autonomous（自動で進めるコマンド）での動き", [
-        ("○", "単独のコマンドと同じ"),
-        ("○", "計画と実装の中は同じ。相談（smart discuss）の discuss:pre・post は起きない"),
-        ("△", "パターンB と同じ。plan:pre の skill が 2 回動く"),
-        ("○", "CLAUDE.md の指示では、起動された 8 体の全部が子を起動した"),
-        ("△", "実装の最後の verify:post だけ。相談の文は渡らない"),
     ]),
 ]
 OUTSIDE_TITLE = "参考）GSD の外の方法（Claude Code の仕組みと GSD の設定）"
@@ -316,6 +317,7 @@ def sheet1_cells(ws):
     for p in PATTERNS:
         rows.put(p["title"], 18, 30)
         rows.put(p["verdict"], 12, 22, col=3)
+        rows.put(f"/gsd-autonomous（自動で進めるコマンド）で使えるか）{p['auto'][0]}　{p['auto'][2]}", 12, 22, col=3)
         tops.append(rows.y_of(rows.r) + 6)
         rows.skip(fig_rows + 2)
     rows.put("以上", 12, 20)
@@ -567,6 +569,12 @@ def figure(p, Y0):
         for _, cx, _, _, _ in CMDS[1:]:
             v4.line(d, "boundary", (cx - 6, Y0 + 8), (cx - 6, Y0 + 140), tail=False)
             v4.line(d, "boundary", (cx - 6, Y0 + 190), (cx - 6, Y0 + FH - 148), tail=False)
+    mark, short, _ = p["auto"]
+    color = MARK_COLOR[mark]
+    d.shape(FX + 22, Y0 + 18, 306, 50, "roundRect", fill="FFFFFF", line=color, lw=1.5, adj=12000, align="l",
+            text=[[("/gsd-autonomous（自動で進めるコマンド）", {"bold": True, "size": 9.5})],
+                  [(f"{mark} {short}", {"bold": True, "color": color})]],
+            size=10, font=YU, color=INK, ins=(8, 3, 6, 3), name="autonomous で使えるか")
     numbers = iter(range(1, 40))
     for col in CMDS:
         draw_column(d, col, p["cols"].get(col[0], []), Y0, col[0] in p.get("side", ()), numbers)
