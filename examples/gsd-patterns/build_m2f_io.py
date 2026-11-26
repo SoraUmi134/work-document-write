@@ -29,7 +29,7 @@ def image(d, x, y, lines, w=CW, h=34, name="画像のファイル"):
                    text=lines, size=9, font=YU, ins=(4, 1, 8, 1), name=name)
 
 
-def agent(d, x, y, lines, w=CW, h=46, name="係"):
+def agent(d, x, y, lines, w=CW, h=46, name="サブエージェント"):
     return box(d, x, y, w, h, lines, fill=BLUE, line=BLUE_LINE, size=10, name=name)
 
 
@@ -60,9 +60,9 @@ def badge(d, cx, y, n):
             color="FFFFFF", font=YU, ins=(0, 0, 0, 0), name="番号")
 
 
-LEGEND2 = [(GRAY, 1.25, "dash", "読む（係・道具が、矢印の先の物を読む）"),
+LEGEND2 = [(GRAY, 1.25, "dash", "読む（サブエージェント・道具が、矢印の先の物を読む）"),
            (WRITE, AW, None, "書く（矢印の先の物を作る）"),
-           (BACK, AW, None, "返す（指摘を前の係へ戻す）")]
+           (BACK, AW, None, "返す（指摘を前のサブエージェントへ戻す）")]
 
 
 def legend2(d, x, y):
@@ -75,7 +75,7 @@ def legend2(d, x, y):
         yy = y + 20 * len(LEGEND2) + 6
         rows = [(lambda a, b: file(d, a, b, "", w=30, h=18, name="凡例の色（値）"), "値・文字のファイル"),
                 (lambda a, b: image(d, a, b, "", w=30, h=18, name="凡例の色（画像）"), "画像のファイル（PNG）"),
-                (lambda a, b: agent(d, a, b, "", w=30, h=18, name="凡例の色（係）"), "方法論のサブエージェント"),
+                (lambda a, b: agent(d, a, b, "", w=30, h=18, name="凡例の色（サブエージェント）"), "方法論のサブエージェント"),
                 (lambda a, b: tool(d, a, b, "", w=30, h=18, name="凡例の色（道具）"), "道具（キットのスクリプト）")]
         for k, (mk, label) in enumerate(rows):
             mk(x + 2, yy + 22 * k)
@@ -94,7 +94,7 @@ def lane_title(d, y, h, title, sub):
 
 
 def build_io(d, Y):
-    d.text(26, Y + 14, 1700, 40, [[("図2　図1 の点線の枠（(4) execute の中）を、工程ごとに詳しく — 係へ何を渡し、何が返るか", {})]],
+    d.text(26, Y + 14, 1700, 40, [[("図2　図1 の点線の枠（(4) execute の中）を、工程ごとに詳しく — サブエージェントへ何を渡し、何が返るか", {})]],
            size=24, font=None, color="000000", wrap="none", name="見出し（2 枚目）")
     lanes = ["prep", "read", "build", "link"]
     hs = {"prep": 175, "read": 125, "build": 235, "link": 180}
@@ -129,14 +129,14 @@ def build_io(d, Y):
         write(d, (t, 3), (o, 1))
     badge(d, OX + OW + 18, y + 28, 1)
     badge(d, OX + OW + 18, y + 66, 2)
-    tip(d, TIP_X, y + 26, 1, "SVG を「値の辞書」に直して渡す。数 MB の SVG を、そのまま係に読ませない")
+    tip(d, TIP_X, y + 26, 1, "SVG を「値の辞書」に変換して渡す。数 MB の SVG を、そのままサブエージェントに読ませない")
     tip(d, TIP_X, y + 88, 2, "お手本の画像は、作った画面と同じブラウザで描く（描き方の差を消す）")
 
     # ---- read: モックを読む ----
     y = ys["read"]
     lane_title(d, y, hs["read"], "read", "モックを読む\nsdd-relay-read")
     dig = file(d, COLS[0], y + 40, [[("mock.digest.json", {"bold": True})], "構造・文言・部品の節"], name="digest（read）")
-    ext = agent(d, COLS[1] + 20, y + 34, [[("dna-extractor", {"bold": True})], "読む（別の回でもう一度確かめる）"],
+    ext = agent(d, COLS[1] + 20, y + 34, [[("dna-extractor", {"bold": True})], "読む（別の回でもう一度確認する）"],
                 name="dna-extractor（read）")
     note(d, COLS[1] + 20, y + 84, "✕ 画像は開かない（見張りが止める）")
     read(d, (ext, 1), (dig, 3))
@@ -145,7 +145,7 @@ def build_io(d, Y):
     write(d, (ext, 3), (dna, 1))
     write(d, (ext, 3), (req, 1))
     badge(d, COLS[1] + 20 + CW + 18, y + 14, 3)
-    tip(d, TIP_X, y + 30, 3, "係は画像を見ずに、値だけで画面を読む（別の係がもう一度読んで確かめる）")
+    tip(d, TIP_X, y + 30, 3, "dna-extractor は画像を見ずに、値だけで画面を読む（別の回でもう一度読んで確認する）")
 
     # ---- build: 画面を作り、お手本と比べる ----
     y = ys["build"]
@@ -158,10 +158,10 @@ def build_io(d, Y):
         read(d, (imp, 1), (i, 3))
     src = file(d, COLS[2], y + 58, [[("src/", {"bold": True})], "画面のコード"], name="src")
     write(d, (imp, 3), (src, 1))
-    note(d, COLS[2], y + 96, "部品の PNG は、方法論の係が src へ写す", color="595959", w=210)
-    note(d, COLS[2], y + 114, "（実装の係はファイル名で使うだけ）", color="595959", w=210)
+    note(d, COLS[2], y + 96, "部品の PNG は、sdd-relay-build が src へコピーする", color="595959", w=210)
+    note(d, COLS[2], y + 114, "（implementer はファイル名で使うだけ）", color="595959", w=210)
     ver = agent(d, COLS[3], y + 52, [[("visual-verifier", {"bold": True})], "撮って、お手本と比べる"], name="visual-verifier")
-    note(d, COLS[3], y + 34, "画像を見るのは、この係だけ", color="C55A11")
+    note(d, COLS[3], y + 34, "画像を見るのは、visual-verifier だけ", color="C55A11")
     read(d, (ver, 1), (src, 3))
     mk = image(d, COLS[4] + 20, y + 14, [[("mock.png", {"bold": True})], "お手本の画像"], name="mock.png（build）")
     shot = image(d, COLS[4] + 20, y + 56, [[("screenshot.png", {"bold": True})], "撮った画面（shoot.mjs）"], name="撮った画面")
@@ -190,7 +190,7 @@ def build_io(d, Y):
     badge(d, COLS[3] + CW + 12, y + 24, 4)
     badge(d, 1352, y + 12, 5)
     badge(d, COLS[4] + 20 + CMP_W + 24, y + 130, 6)
-    tip(d, TIP_X, y + 8, 4, "画像で比べるのは visual-verifier だけ。実装の係は画像を見ない（役目を分ける）")
+    tip(d, TIP_X, y + 8, 4, "画像で比べるのは visual-verifier だけ。implementer は画像を見ない（役目を分ける）")
     tip(d, TIP_X, y + 62, 5, "合否は画面全体の画像から数字で決める: 違う画素 2% 以下・塊 500px 以下・部品ごと 50% 以下")
     tip(d, TIP_X, y + 118, 6, ["画面の大きさに応じて、Claude が縮めずに読める大きさ（長辺 1568px 以下）に何枚かに切る",
                                "切った所ごとに、お手本・実装・差分を並べる（小さい画面なら 1 組）。差の大きい所は拡大も添える（縮むと細部が潰れるため）"],
@@ -210,9 +210,9 @@ def build_io(d, Y):
     note(d, COLS[3], y + 87, "✕ 画像は開かない（見張りが止める）")
     read(d, (imp2, 1), (table, 3))
     proto = file(d, COLS[4], y + 26, [[("src/prototype/", {"bold": True})], "画面の移動・値の引き継ぎ",
-                                       "目印 // PROTOTYPE: 番号"], h=64, name="試作のつなぎ")
+                                       "マーカー // PROTOTYPE: 番号"], h=64, name="試作のつなぎ")
     write(d, (imp2, 3), (proto, 1))
-    ver2 = agent(d, COLS[5], y + 31, [[("visual-verifier", {"bold": True})], "表の行ごとに押して確かめる",
+    ver2 = agent(d, COLS[5], y + 31, [[("visual-verifier", {"bold": True})], "表の行ごとに押して確認する",
                                       "（Playwright で、移る・値が出るか）"], h=58, name="visual-verifier（link）")
     read(d, (ver2, 1), (proto, 3))
     d.connector((ver2.cx, ver2.y + ver2.h), (ver2.cx, ver2.y + ver2.h + 24), color=BACK, lw=AW, tail=False, name="返す")
@@ -221,8 +221,8 @@ def build_io(d, Y):
            wrap="none", name="返すの説明")
     badge(d, COLS[4] + CW - 6, y + 14, 7)
     badge(d, COLS[5] + CW - 6, y + 14, 8)
-    tip(d, TIP_X, y + 20, 7, "仮のつなぎに目印を付ける。運用 sdd で、この目印を探して本物のつなぎに置き換える")
-    tip(d, TIP_X, y + 86, 8, "つなぎ表 1 枚に集め、表の行ごとに押して確かめる。決めきれない所は「要確認」に残す")
+    tip(d, TIP_X, y + 20, 7, "仮のつなぎにマーカーを付ける。運用 sdd で、このマーカーを探して本物のつなぎに置き換える")
+    tip(d, TIP_X, y + 86, 8, "つなぎ表 1 枚に集め、表の行ごとに押して確認する。決めきれない所は「要確認」に残す")
 
     legend2(d, 60, top + total + 60)
     return top + total + 20

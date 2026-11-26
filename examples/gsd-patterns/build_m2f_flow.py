@@ -1,4 +1,4 @@
-"""運用 m2f（モックから画面を作る）の動きを、「GSDに独自処理を挟む3つの方法.xlsx」と同じ描き方で 1 枚の図にする台本。
+"""運用 m2f（モックから画面を作る）の動きを、「GSDに独自処理を挟む3つの方法.xlsx」と同じ描き方で 1 枚の図にするスクリプト。
 
 使い方: python3 build_m2f.py 見本.xlsx 出力.xlsx
 - 見本の xlsx から図とセルの文字を外した空の土台を作り、そこへ描く（セルの大きさは見本の図から測る）。
@@ -16,7 +16,7 @@ GREEN = ("accent6", 20, 80)      # GSD の物
 GREEN_LINE = ("accent3",)
 BLUE = ("accent1", 20, 80)       # 方法論（キット）の物
 BLUE_LINE = "2F6DB5"
-ARROW = ("accent2",)             # 起こす（橙）
+ARROW = ("accent2",)             # 起動する（橙）
 AW = 1.5
 GRAY = ("tx1", 50, 50)           # 読む（灰の点線）
 CMD = "404040"                   # コマンドで動く（黒）
@@ -79,7 +79,7 @@ def number(d, cx, y, label):
 
 
 LEGEND = [(CMD, AW, None, "人のコマンドで、メインエージェントが動く"),
-          (ARROW, AW, None, "サブエージェントを起こす（呼び出す）"),
+          (ARROW, AW, None, "サブエージェントを起動する（呼び出す）"),
           (WRITE, AW, None, "書く（矢印の先の物を作る）"),
           (GRAY, 1.25, "dash", "読んで従う（矢印の先の物を読む）"),
           (NEXT, AW, None, "次の区切りへ（(2) から繰り返す）"),
@@ -91,7 +91,7 @@ GATE_TAG = "2F5597"
 
 
 def gate(d, x, y, w, h, lines, name="自動の検査"):
-    """自動で動く検査（GSD の差し込み口から呼ばれるキットの道具）。両端に縦の帯がある箱と「自動の検査」の札で、係と見分ける。"""
+    """自動で動く検査（GSD の挿入ポイントから呼ばれるキットの道具）。両端に縦の帯がある箱と「自動の検査」の札で、サブエージェントと見分ける。"""
     with d.group(name):
         d.shape(x, y - 15, 74, 14, "roundRect", fill=GATE_TAG, line=None, adj=30000,
                 text=[[("⚙ 自動の検査", {"bold": True})]], size=8, color="FFFFFF", font=YU, ins=(2, 0, 2, 0), name="札（自動の検査）")
@@ -100,7 +100,7 @@ def gate(d, x, y, w, h, lines, name="自動の検査"):
 
 
 def rule_doc(d, x, y, w, h, lines, fill, name):
-    """読むだけの決まり（手順書・CLAUDE.md・手引き）。紙の書類の形と点線の縁で、その場で作る物と分ける。"""
+    """読むだけのルール（手順書・CLAUDE.md・手引き）。紙の書類の形と点線の縁で、その場で作る物と分ける。"""
     return d.shape(x, y, w, h, "flowChartDocument", fill=fill, line=("tx1", 35, 65), lw=1, dash="dash",
                    text=lines, size=9, font=YU, ins=(3, 2, 3, 6), name=name)
 
@@ -114,51 +114,51 @@ def legend(d, x, y):
             d.text(x + 40, yy, 220, 18, label, size=10, font=UD, color="000000", wrap="none")
         yy = y + 20 * len(LEGEND) + 6
         box(d, x, yy, 34, 18, "", name="凡例の色（GSD）")
-        d.text(x + 40, yy, 220, 18, "GSD が持つ物（係・書類）", size=10, font=UD, color="000000", wrap="none")
+        d.text(x + 40, yy, 220, 18, "GSD が持つ物（サブエージェント・書類）", size=10, font=UD, color="000000", wrap="none")
         box(d, x, yy + 24, 34, 18, "", fill=BLUE, line=BLUE_LINE, name="凡例の色（方法論）")
         d.text(x + 40, yy + 24, 220, 18, "方法論（キット）が持つ物", size=10, font=UD, color="000000", wrap="none")
         d.text(x, yy + 72, 280, 18, [[("紫の字", {"bold": True, "color": "7030A0"}), ("＝キットが GSD の流れを曲げる仕掛け", {})]],
                size=10, font=UD, color="000000", wrap="none", name="凡例（仕掛け）")
         d.shape(x, yy + 48, 34, 18, "flowChartPredefinedProcess", fill=BLUE, line=GATE_TAG, lw=1.25, name="凡例の形（自動の検査）")
-        d.text(x + 40, yy + 48, 240, 18, "自動で動く検査（GSD の差し込み口から呼ばれる）", size=10, font=UD, color="000000",
+        d.text(x + 40, yy + 48, 240, 18, "自動で動く検査（GSD の挿入ポイントから呼ばれる）", size=10, font=UD, color="000000",
                wrap="none")
         file_doc(d, x, yy + 96, 34, 20, "", fill="FFFFFF", line=("tx1", 50, 50), name="凡例の形（ファイル・書類）")
         d.text(x + 40, yy + 97, 260, 18, "ファイル・書類（計画書・表・コード・成果物）", size=10, font=UD, color="000000",
                wrap="none")
-        rule_doc(d, x, yy + 120, 34, 20, "", "FFFFFF", name="凡例の形（読むだけの決まり）")
-        d.text(x + 40, yy + 121, 260, 18, "読むだけの決まり（手順書・CLAUDE.md・手引き）", size=10, font=UD, color="000000",
+        rule_doc(d, x, yy + 120, 34, 20, "", "FFFFFF", name="凡例の形（読むだけのルール）")
+        d.text(x + 40, yy + 121, 260, 18, "読むだけのルール（手順書・CLAUDE.md・手引き）", size=10, font=UD, color="000000",
                wrap="none")
 
 
 KID_GROUPS = {
     "read": ("画面ごとに、読む → 監査（2〜3 画面ずつ同時に）",
-             [("① dna-extractor", "読む（主担当）"), ("② dna-extractor", "監査（別の回で確かめる）")], "→"),
-    "build": ("実装と確かめを別の係に分ける（最大 5 周。共通の build は ① だけ）",
+             [("① dna-extractor", "読む（主担当）"), ("② dna-extractor", "監査（別の回で確認する）")], "→"),
+    "build": ("実装と確認を別々の子に分ける（最大 5 周。共通の build は ① だけ）",
               [("① implementer", "画面のコードを書く"), ("② visual-verifier", "撮ってお手本と比べる")], "⇄"),
-    "link": ("表を書く → 画面ごとにつなぐ → 押して確かめる",
-             [("① dna-extractor", "つなぎ表"), ("② implementer", "画面ごとにつなぐ"), ("③ visual-verifier", "押して確かめる")], "→"),
+    "link": ("表を書く → 画面ごとにつなぐ → 押して確認する",
+             [("① dna-extractor", "つなぎ表"), ("② implementer", "画面ごとにつなぐ"), ("③ visual-verifier", "押して確認する")], "→"),
 }
 
 
 def kid_group(d, x, y, w, h, st):
-    """方法論の係が順に起こす子の係のまとまり（点線の枠）。中に、起こす順の番号つきで子の係を並べる。"""
+    """方法論独自サブエージェントが順に起動する子のサブエージェントのまとまり（点線の枠）。中に、起動する順の番号つきで子のサブエージェントを並べる。"""
     label, kids, sep = KID_GROUPS[st]
-    with d.group(f"子の係（{st}）"):
-        if st == "build":   # 方法論の係（画面ごと）ごとに 1 つずつある
+    with d.group(f"子のサブエージェント（{st}）"):
+        if st == "build":   # 方法論独自サブエージェント（画面ごと）ごとに 1 つずつある
             for k in (2, 1):
                 d.shape(x + 4 * k, y + 3 * k, w, h, "rect", fill="F3F7FC", line=BLUE_LINE, lw=1, dash="sysDash", name="重なり")
-        frame = d.shape(x, y, w, h, "rect", fill="F3F7FC", line=BLUE_LINE, lw=1, dash="sysDash", name=f"子の係の枠（{st}）")
-        d.text(x + 4, y + 1, w - 8, 14, label, size=8, font=UD, color="404040", wrap="none", name="子の係の枠の説明")
+        frame = d.shape(x, y, w, h, "rect", fill="F3F7FC", line=BLUE_LINE, lw=1, dash="sysDash", name=f"子のサブエージェントの枠（{st}）")
+        d.text(x + 4, y + 1, w - 8, 14, label, size=8, font=UD, color="404040", wrap="none", name="子のサブエージェントの枠の説明")
         n = len(kids)
         gap = 18
         bw = (w - 8 - gap * (n - 1)) / n
         for i, (a, b) in enumerate(kids):
             bx = x + 4 + i * (bw + gap)
             box(d, bx, y + 17, bw, 42, [[(a, {"bold": True, "size": 8 if n == 3 else 9})], [(b, {"size": 8})]],
-                fill=BLUE, line=BLUE_LINE, name=f"子の係（{st}・{i + 1}）")
+                fill=BLUE, line=BLUE_LINE, name=f"子のサブエージェント（{st}・{i + 1}）")
             if i < n - 1:
                 d.text(bx + bw, y + 30, gap, 16, sep, size=11, font=UD, color="404040", align="ctr", wrap="none",
-                       name="起こす順の印")
+                       name="起動する順のマーカー")
         return frame
 
 
@@ -227,7 +227,7 @@ def build():
     write(d, (road, 2), (roadmap, 0))
 
     # (2) discuss → 区切りの画面の表
-    # メインが 2 つの決まりを読んで、2 つの書類を書く
+    # メインが 2 つのルールを読んで、2 つの書類を書く
     rule_g = rule_doc(d, 470, AY - 6, 104, 56, [[("GSD の手順書", {"bold": True})], "discuss-phase の手順"],
                       GREEN, name="GSD の手順書")
     rule_k = rule_doc(d, 664, AY - 6, 112, 56, [[("キットの CLAUDE.md", {"bold": True})],
@@ -237,12 +237,12 @@ def build():
                                                   [("表は SCREENS.md を指す", {"size": 8})]], fill=GREEN, line=GREEN_LINE, name="CONTEXT")
     screens = file_doc(d, 732, AY + 100, 124, 58, [[("区切りの画面の表", {"bold": True})], "SCREENS.md"],
                        fill=BLUE, line=BLUE_LINE, name="SCREENS")
-    # メインは決まりを読み（灰の点線）、書類を書く（緑。決まりの箱は通さない）
+    # メインはルールを読み（灰の点線）、書類を書く（緑。ルールの箱は通さない）
     for rule, doc in ((rule_g, context), (rule_k, screens)):   # 左で読み、右で書く（書く矢印は箱の上の真ん中へ）
         read(d, (rule.cx, MB), (rule, 0))
         write(d, (doc.cx, MB), (doc, 0))
 
-    # (3) plan → gsd-planner（計画の手引きを読む）→ 計画書。計画書の形は門①が検査する
+    # (3) plan → gsd-planner（計画の手引きを読む）→ 計画書。計画書の形はゲート①が検査する
     PX = 960   # plan の範囲の左寄り（右は計画書のカード）
     planner = box(d, PX - 58, AY, 116, 58, [[("サブエージェント", {"bold": True})], "gsd-planner"], name="gsd-planner")
     spawn(d, (PX, MB), (planner, 0))
@@ -252,10 +252,10 @@ def build():
                       [("で、GSD が持たせる", {"color": "7030A0", "size": 8})]], BLUE, name="sdd-planner")
     read(d, (planner, 2), (skill, 0))
     gate1 = gate(d, 884, AY + 204, 160, 54,
-                 [[("書いた計画を全部確かめる", {"bold": True, "size": 9})], "門①  gsd-plan-check"], name="門①")
+                 [[("書いた計画を全部確認する", {"bold": True, "size": 9})], "ゲート①  gsd-plan-check"], name="ゲート①")
     read(d, (planner, 1), (screens, 3))
-    d.text(884, AY + 260, 160, 28, ["Capability sdd-kit が", "plan:post に差し込む"], size=9, font=UD, color="7030A0", wrap="none",
-           name="門①の説明")
+    d.text(884, AY + 260, 160, 28, ["Capability sdd-kit が", "plan:post に挿入する"], size=9, font=UD, color="7030A0", wrap="none",
+           name="ゲート①の説明")
 
     CX, CW = 1140, 170
     d.text(CX, AY - 40, 170, 30, "計画書は工程ごとに書く", size=10, font=UD, color="000000", name="計画書の説明")
@@ -267,32 +267,32 @@ def build():
             cards.append(stack_doc(d, CX, AY + ROW_H * k - 4, CW, 70, lines, fill=BLUE, line=BLUE_LINE, name=f"計画書（{st}）"))
         else:
             cards.append(file_doc(d, CX, AY + ROW_H * k - 4, CW, 70, lines, fill=BLUE, line=BLUE_LINE, name=f"計画書（{st}）"))
-    with d.group("順番の決まり方"):
+    with d.group("順番の決め方"):
         d.shape(884, AY + ROW_H * 4 - 32, 420, 118, "roundRect", fill="FFFFFF", line="C55A11", lw=1.25, adj=6000, align="l",
                 anchor="t", text=[[("順番はこう決まる", {"bold": True, "color": "C55A11", "size": 11}),
-                                   ("　組（wave）＝いっしょに流す計画書のまとまり", {"color": "C55A11"})],
+                                   ("　組（wave）＝いっしょに実行する計画書のまとまり", {"color": "C55A11"})],
                                   "① gsd-planner が計画書の頭に、組と先に済む物（depends_on）を書く",
-                                  "② execute は組の小さい順に計画書を流し、agent_hint の係を起こす",
+                                  "② execute は組の小さい順に、agent_hint のサブエージェントを起動",
                                   "　（同じ組は同時に）",
-                                  "③ 組が済むたびに門②が確かめ、キットの案内で流せる計画書を",
-                                  "　取り直して、次の組へ"],
-                size=10, font=UD, ins=(6, 4, 4, 2), name="順番の決まり方")
-    # 門①は区切りの計画書を全部確かめる（点線の枠でひとまとめにし、矢印は枠に刺す）
+                                  "③ 組が済むたびにゲート②が確認し、キットの案内で実行できる計画書を",
+                                  "　再取得して、次の組へ"],
+                size=10, font=UD, ins=(6, 4, 4, 2), name="順番の決め方")
+    # ゲート①は区切りの計画書を全部確認する（点線の枠でひとまとめにし、矢印は枠に刺す）
     plans_box = d.shape(CX - 10, AY - 14, CW + 30, ROW_H * 3 + 88, "rect", fill=None, line=("tx1", 35, 65), lw=1,
                         dash="sysDash", name="計画書のまとまり")
     for c in cards:
         write(d, (planner, 3), (c, 1))
 
-    # (4) execute → 中継ぎ係（agent_hint の名で起きる）→ 子の係 → 書く物
+    # (4) execute → 方法論独自サブエージェント（agent_hint の名で起動される）→ 子のサブエージェント → 書く物
     RX, RW = 1372, 184
     KX, KW = 1600, 326
     FX, FW = 1970, 190
     relays, kids = [], {}
     for k, (st, _) in enumerate(STAGES):
         y = AY + ROW_H * k
-        role = "（道具を流すだけ）" if st == "prep" else "（検査とコミット。作業は子へ）"
+        role = "（道具を実行するだけ）" if st == "prep" else "（検査とコミット。作業は子へ）"
         lines = [[("方法論独自サブエージェント", {"bold": True})], [(f"sdd-relay-{st}", {"color": PURPLE})], role]
-        r = (stack if st == "build" else box)(d, RX, y, RW, 60, lines, fill=BLUE, line=BLUE_LINE, name=f"中継ぎ係（{st}）")
+        r = (stack if st == "build" else box)(d, RX, y, RW, 60, lines, fill=BLUE, line=BLUE_LINE, name=f"方法論独自サブエージェント（{st}）")
         read(d, (r, 1), (cards[k], 3))
         d.shape(r.x, r.y - 17, 112, 15, "roundRect", fill="1F3864", line=None, adj=30000,
                 text=[[(f"{WAVE[st][0]}  ・  図2 {st}", {"bold": True})]], size=9, color="FFFFFF", font=YU, ins=(2, 0, 2, 0),
@@ -308,7 +308,7 @@ def build():
             mock = file_doc(d, KX, AY - 40, KW, 32, [[("人が置いたモック", {"bold": True}), ("  mock.svg", {})]],
                             fill=BLUE, line=BLUE_LINE, name="モック")
             read(d, (r, 0), (mock, 1))
-            d.text(KX - 12, y + 35, 210, 30, ["子は起こさない：SVG を値と画像に変える",
+            d.text(KX - 12, y + 35, 210, 30, ["子は起動しない：SVG を値と画像に変える",
                                               "決まった変換で、判断が要らないため"], size=9, font=UD, color="595959",
                    name="子なし")
         relays.append(r)
@@ -319,63 +319,63 @@ def build():
     d.shape(KX, verifier.y - 17, 112, 15, "roundRect", fill="1F3864", line=None, adj=30000,
             text=[[("全部の組の後", {"bold": True})]], size=9, color="FFFFFF", font=YU, ins=(2, 0, 2, 0), name="対応の札（照合）")
 
-    # 門②が見るのは、各方法論の係が計画書ごとに残す記録
+    # ゲート②が見るのは、各方法論独自サブエージェントが計画書ごとに残す記録
     records = file_doc(d, FX, y_bot + 12, FW, 52, [[("計画書ごとの記録", {"bold": True})],
                                                    [("SUMMARY.md・RESULT.json", {"size": 8})],
                                                    [("CHECKS.json・deferred-items.md", {"size": 8})]],
                       fill=BLUE, line=BLUE_LINE, name="計画書ごとの記録")
     write(d, (FX + FW / 2, AY + ROW_H * 3 + 68), (records, 0))
-    d.text(FX + FW / 2 + 4, AY + ROW_H * 3 + 70, 120, 14, "各方法論の係が書く", size=8, font=UD, color="404040", wrap="none",
+    d.text(FX + FW / 2 + 4, AY + ROW_H * 3 + 70, 120, 14, "sdd-relay-○○ が書く", size=8, font=UD, color="404040", wrap="none",
            name="記録の説明")
 
-    gate2 = gate(d, FX, y_bot + 84, FW + 10, 50, [[("済んだ組の結果を確かめる", {"bold": True})], "門②  gsd-wave-check"],
-                 name="門②")
+    gate2 = gate(d, FX, y_bot + 84, FW + 10, 50, [[("済んだ組の結果を確認する", {"bold": True})], "ゲート②  gsd-wave-check"],
+                 name="ゲート②")
     read(d, (gate1, 3), (plans_box, 1))
-    d.text(FX, y_bot + 138, 190, 28, ["Capability sdd-kit が", "execute:wave:post に差し込む"], size=9, font=UD, color="7030A0", wrap="none",
-           name="門②の説明")
+    d.text(FX, y_bot + 138, 190, 28, ["Capability sdd-kit が", "execute:wave:post に挿入する"], size=9, font=UD, color="7030A0", wrap="none",
+           name="ゲート②の説明")
     read(d, (gate2, 0), (records, 2))
 
     lane = RX - 22
     exe = box(d, RX, y_bot + 72, RW, 28, [[("gsd-executor（GSD の既定）", {"bold": True})]], name="使わない gsd-executor")
-    with d.group("起こす矢印"):
+    with d.group("起動する矢印"):
         d.connector((lane, MB), (lane, exe.cy), color=ARROW, lw=AW, tail=False, name="起こす矢印の幹")
         for t in relays + [verifier, exe]:
             spawn(d, (lane, t.cy), (t, 1), name="起こす矢印の枝")
     d.cross(lane + 11, exe.cy, size=20)
     d.text(RX, y_bot - 6, 196, 30, [[("config.json の agent_hint_routing: true", {"color": "7030A0"})],
-                                   [("で、agent_hint の係が代わりに起きる", {"color": "7030A0"})]],
+                                   [("で、agent_hint に書いた方が起動される", {"color": "7030A0"})]],
            size=8, font=UD, color="7030A0", name="gsd-executor の説明")
 
-    # (5) verify-work → メインエージェントが受け入れ確認 → gsd-planner が直しの計画書を作る
+    # (5) verify-work → メインエージェントが受け入れ確認 → gsd-planner がギャップ修正プラン（--gaps）を作る
     VX = xs[4] - 74
     VW = 148
     uat_agent = box(d, VX, AY, VW, 58,
                     [[("メインエージェント", {"bold": True})], "受け入れ確認（人と対話）",
-                     [("動く画面を確かめてもらう", {"size": 8})]],
+                     [("動く画面を確認してもらう", {"size": 8})]],
                     name="受け入れ確認（メイン）")
     command(d, (xs[4], MB), (uat_agent, 0))
 
     fix_planner = box(d, VX, AY + ROW_H, VW, 66,
                       [[("サブエージェント", {"bold": True})], "gsd-planner",
-                       [("直しの計画書を作る（--gaps）", {"size": 8})]],
-                      name="gsd-planner（直しの計画書）")
+                       [("ギャップ修正プランを作る（--gaps）", {"size": 8})]],
+                      name="gsd-planner（ギャップ修正プラン）")
     spawn(d, (uat_agent, 2), (fix_planner, 0))
-    d.text(VX + VW / 2 + 6, AY + ROW_H / 2 + 10, 70, 16, "直す所があれば", size=8, font=UD, color="C55A11", wrap="none",
-           name="直す所の説明")
+    d.text(VX + VW / 2 + 6, AY + ROW_H / 2 + 10, 70, 16, "修正があれば", size=8, font=UD, color="C55A11", wrap="none",
+           name="修正の説明")
 
     gap_plan = file_doc(d, VX, AY + ROW_H * 2 + 6, VW, 56,
-                        [[("直しの計画書", {"bold": True})], "PLAN.md（--gaps）",
-                         [("直す作業だけを並べる", {"size": 8})]],
-                        fill=BLUE, line=BLUE_LINE, name="直しの計画書")
+                        [[("ギャップ修正プラン", {"bold": True})], "PLAN.md（--gaps）",
+                         [("修正する作業だけを並べる", {"size": 8})]],
+                        fill=BLUE, line=BLUE_LINE, name="ギャップ修正プラン")
     write(d, (fix_planner, 2), (gap_plan, 0))
 
     d.text(VX - 4, AY + ROW_H * 2 + 70, VW + 8, 28,
-           ["直しの計画書ができたら", "/gsd-execute-phase --gaps-only へ"],
-           size=8, font=UD, color="7030A0", align="ctr", wrap="none", name="直し実行の説明")
+           ["ギャップ修正プランができたら", "/gsd-execute-phase --gaps-only へ"],
+           size=8, font=UD, color="7030A0", align="ctr", wrap="none", name="修正実行の説明")
 
     d.text(RX, AY - 44, 200, 16, [[("上から順に起きる（組 1 → 組 5）↓", {"bold": True})]], size=10, font=UD,
            color="C55A11", wrap="none", name="起きる順")
-    # 図2 で詳しく描く所（execute の中の、工程ごとの方法論の係）を点線の枠で囲む
+    # 図2 で詳しく描く所（execute の中の、工程ごとの方法論独自サブエージェント）を点線の枠で囲む
     fx0, fy0, fx1, fy1 = RX - 8, AY - 48, FX + FW + 10, AY + ROW_H * 3 + 68
     d.shape(fx0, fy0, fx1 - fx0, fy1 - fy0, "rect", fill=None, line="1F3864", lw=1.25, dash="sysDot",
             name="図2 の枠")
@@ -400,12 +400,13 @@ def callouts(d, p):
     with d.group("要点2"):
         r = p["relays"][3]
         d.callout(1339, FB + 30, 260, 120,
-                  ["要点2", "", "GSD は計画書の agent_hint を見て、既定の gsd-executor の代わりに、方法論独自のサブエージェントを起こす。"],
+                  ["要点2", "", "GSD は計画書の agent_hint を見て、既定の gsd-executor の代わりに、方法論独自のサブエージェントを起動する。"],
                   to=(p["exe"].cx, p["exe"].y + p["exe"].h), name="吹き出し")
     with d.group("要点3"):
         k = p["kids"]["build"]
         d.callout(1763, p["frame_bottom"] + 30, 370, 120,
-                  ["要点3", "", "実装の係はモックの画像を開かない（見張りが止める）。モックは mock.digest.json の値で読み、visual-verifier が撮った画面とモックを比べて、合うまで直す。"],
+                  ["要点3", "", "implementer はモックの画像を開かない（見張りが止める）。",
+                   "モックは mock.digest.json の値で読み、visual-verifier が撮った画面とモックを比べて、合うまで修正する。"],
                   to=(k.x + k.w - 4, k.y + k.h), name="吹き出し")
 
 

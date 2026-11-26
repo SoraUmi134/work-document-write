@@ -1,4 +1,4 @@
-"""「GSDに独自処理を挟む2つの方法.xlsx」にパターン 3 の図を足す（書き直す）台本。
+"""「GSDに独自処理を挟む2つの方法.xlsx」にパターン 3 の図を追加する（再描画する）スクリプト。
 
 使い方:
   python3 build_pattern3.py 元.xlsx 出力.xlsx
@@ -7,9 +7,9 @@
 - 箱は角丸。GSD の物は薄い緑、方法論独自の物は薄い青。方法論で決める値は赤字
 - 矢印は橙。箱から箱への矢印は、箱のつなぎ目につなぐ
 - 手順は図の中に文章で書かず、矢印の脇の番号（①…）で示す
-- 使わない係には ✕
+- 使わないサブエージェントには ✕
 - 問題点は黄色の吹き出しに赤字。該当の箱へ線を出し、参考リンクの札（該当の一文へ飛ぶリンク）を付ける
-- パターン全体を 1 つのまとまりにし、吹き出しと札、係と追加のプロンプトは小さなまとまりにする
+- パターン全体を 1 つのまとまりにし、吹き出しと札、サブエージェントと追加のプロンプトは小さなまとまりにする
 """
 import os
 import sys
@@ -47,7 +47,7 @@ L = {
 
 
 def two_line(d, x, y, w, h, head, name_runs, fill, line, head_bold=True, size=11):
-    """パターン 1・2 の係の箱: 1 行目に種類、2 行目以降に名前。"""
+    """パターン 1・2 のサブエージェントの箱: 1 行目に種類、2 行目以降に名前。"""
     return d.shape(x, y, w, h, "roundRect", fill=fill, line=line, lw=0.75, adj=8000,
                    text=[[(head, {"bold": head_bold})]] + name_runs, size=size, font=YU,
                    ins=(4, 2, 4, 2), name=head)
@@ -95,12 +95,12 @@ def build():
     main = d.shape(397.9, MY, 1068.6, MH, "roundRect", fill=GREEN, line=GREEN_LINE, adj=8000,
                    text="メインエージェント", size=14, font=UD, name="メインエージェント")
 
-    AY, AH = 900.0 + DY, 82.0   # 係の段
+    AY, AH = 900.0 + DY, 82.0   # サブエージェントの段
 
-    # ---- Capability（方法論の中身を全部ここに持つ） ----
+    # ---- Capability（方法論の内容を全部ここに持つ） ----
     cap = d.shape(70, MY + MH / 2 - 36, 300, 72, "roundRect", fill=BLUE, line=("accent1",), adj=8000,
                   text=[".gsd/capabilities/sdd-kit/capability.json",
-                        [('"contributions": [ 計画係へ, 作る係へ ]', {"color": RED})],
+                        [('"contributions": [ gsd-planner へ, gsd-executor へ ]', {"color": RED})],
                         [('"skills": [ implementer, designer, … ]', {"color": RED})],
                         [('"gates" / "hooks"（今と同じ）', {"color": RED})]],
                   size=10, font=UD, align="l", anchor="ctr", ins=(6, 3, 4, 3), name="Capability")
@@ -120,18 +120,18 @@ def build():
     d.connector((cmds[1], 2), (dx, MY), color=ARROW, lw=AW)
     number(d, dx - 16, 777 + DY, "③")
 
-    # ---- ④ ⑤ 計画書を書く → 計画係 ＋ 方法論独自の追加のプロンプト ----
+    # ---- ④ ⑤ 計画書を書く → gsd-planner ＋ 方法論独自の追加のプロンプト ----
     px = cmds[2].site(2)[0]
     d.connector((cmds[2], 2), (px, MY), color=ARROW, lw=AW)
     number(d, px - 16, 777 + DY, "④")
-    with d.group("計画係と追加のプロンプト"):
+    with d.group("gsd-planner と追加のプロンプト"):
         planner = two_line(d, px - 52, AY, 104, AH, "サブエージェント",
                            ["gsd-planner", "（計画立案）"], GREEN, GREEN_LINE)
         d.shape(px - 165, AY + 72, 181, 74, "roundRect", fill=BLUE, line=BLUE_LINE, adj=8000,
                 text=[[("方法論独自の追加のプロンプト", {"bold": True})],
                       "（Capability の contribution）",
                       [("「PLAN.md に sdd.stage を書け」", {"color": RED})]],
-                size=10, font=YU, name="計画係への追加のプロンプト")
+                size=10, font=YU, name="gsd-planner への追加のプロンプト")
     d.connector((px, MY + MH), (planner, 0), color=ARROW, lw=AW)
     number(d, px - 16, 858 + DY, "⑤")
 
@@ -145,7 +145,7 @@ def build():
     ex = cmds[3].site(2)[0]
     d.connector((cmds[3], 2), (ex, MY), color=ARROW, lw=AW)
     number(d, ex + 4, 777 + DY, "⑦")
-    with d.group("作る係と追加のプロンプト"):
+    with d.group("gsd-executor と追加のプロンプト"):
         execu = two_line(d, ex - 71.5, AY, 143, AH, "GSDのサブエージェント",
                          ["gsd-executor", "（そのまま使う）"], GREEN, GREEN_LINE)
         d.plus(ex + 98, AY + AH / 2, size=34)
@@ -154,7 +154,7 @@ def build():
                                 "（Capability の contribution）",
                                 [("「PLAN.md の sdd.stage を読み、", {"color": RED})],
                                 [("合う SKILL.md を読んでから作れ」", {"color": RED})]],
-                          size=10, font=YU, name="作る係への追加のプロンプト")
+                          size=10, font=YU, name="gsd-executor への追加のプロンプト")
     d.connector((ex, MY + MH), (execu, 0), color=ARROW, lw=AW)
     number(d, ex + 4, 858 + DY, "⑧")
     d.connector((execu, 1), (plan, 3), color=ARROW, lw=AW, dash="dash", name="計画書を読む")
@@ -166,8 +166,8 @@ def build():
     d.connector((execu, 2), (skill, 0), color=ARROW, lw=AW)
     number(d, ex + 4, AY + AH, "⑨")
 
-    # ---- 使わない中継ぎ係 ----
-    with d.group("使わない中継ぎ係"):
+    # ---- 使わない方法論独自サブエージェント ----
+    with d.group("使わない方法論独自サブエージェント"):
         relay = two_line(d, ex + 135, AY + AH + 22, 158, 54, "方法論独自サブエージェント",
                          [[("sdd-relay-build", {"color": RED})]], BLUE, BLUE_LINE)
         d.cross(relay.cx, relay.cy, size=56)
@@ -175,22 +175,22 @@ def build():
     # ---- この形の位置づけ ----
     with d.group("位置づけ"):
         d.text(56, 975 + DY, 330, 52,
-               "この形は GSD の想定する使い方ではない。\n作る係の差し替えは agent_hint で行う、と\nGSD が決めている。",
+               "この形は GSD の想定する使い方ではない。\ngsd-executor の差し替えは agent_hint で行う、と\nGSD が決めている。",
                size=12, font=UD, color="000000")
         link_tags(d, 56, 1030 + DY, ["1689", "4740", "1143"])
 
     # ---- 問題点 ----
     problem(d, 1580, AY - 30, 370, 132, "問題点1",
-            "作る係への追加のプロンプトは、GSD の手順書に「貼れ」と書いてあるだけで、貼る枠が無い。"
-            "メインが貼り忘れると届かない。GSD 自身も「文章での差し込みは効く保証が無い」と書いている。",
+            "gsd-executor への追加のプロンプトは、GSD の手順書に「貼れ」と書いてあるだけで、依頼文に追記する場所が決まっていない。\n"
+            "メインが貼り忘れると反映されない。GSD 自身も「文章での挿入は効く保証が無い」と書いている。",
             to=eprompt.site(3), keys=["4139", "step275"])
     problem(d, 690, 1075 + DY, 270, 160, "問題点2",
-            "計画書ごとに作る係を選べない。どの計画書も gsd-executor が作り、作業の切り替えは gsd-executor が"
-            " sdd.stage を読んで自分で手引きを選ぶ事に頼る。GSD が agent_hint を作ったのは、ここを文章任せにしないため。",
+            "計画書ごとに作業するサブエージェントを選べない。どの計画書も gsd-executor が作り、作業の切り替えは gsd-executor が"
+            " sdd.stage を読んで自分で手引きを選ぶ事に頼る。GSD が agent_hint を作ったのは、ここを依頼文の追記に頼らないため。",
             to=plan.site(2), keys=["1689", "planmd"])
     problem(d, 975, 1075 + DY, 270, 160, "問題点3",
-            "gsd-executor の道具は変えられない。Agent が無いので子のサブエージェントを起こせず、"
-            "Playwright も無いので画面を見る作業（visual-verifier）はできない。Capability で道具を足す方法も無い。",
+            "gsd-executor の道具は変えられない。Agent が無いので子のサブエージェントを起動できず、"
+            "Playwright も無いので画面を見る作業（visual-verifier）はできない。Capability で道具を追加する方法も無い。",
             to=execu.site(1), keys=["tools", "firstparty"])
     problem(d, 1260, 1075 + DY, 290, 160, "問題点4",
             "Capability の skills は、案件だけに入れた場合（--local）は .claude/skills/ に置かれない"
@@ -202,4 +202,4 @@ def build():
 if __name__ == "__main__":
     src, dst = sys.argv[1], sys.argv[2]
     removed = write_into(src, dst, build())
-    print(f"書きました: {dst}（前のパターン3を {removed} 個消して書き直し）")
+    print(f"書きました: {dst}（前のパターン3を {removed} 個消して再描画）")
