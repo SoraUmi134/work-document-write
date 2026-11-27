@@ -611,6 +611,7 @@ def build(theme_src, dst):
     sheet2_cells(wb.create_sheet(SHEETS[1]))
     sheet3_cells(wb.create_sheet(SHEETS[2]))
     tmp = dst + ".cells.xlsx"
+    wb.properties.creator = None  # 作成者の欄に「openpyxl」を出力しない
     wb.save(tmp)
     part = ensure_drawing(tmp, tmp)
     drawings = [figure(p, y) for p, y in zip(PATTERNS, tops)]
