@@ -29,6 +29,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "skills", "excel-figure", "scripts"))
 from xdraw import CellGrid, Drawing, ensure_drawing, write_into  # noqa: E402
 
+sys.path.insert(0, HERE)
+import doc_refs  # noqa: E402
+
 spec = importlib.util.spec_from_file_location("v4", os.path.join(HERE, "build_3ways_v4.py"))
 v4 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(v4)
@@ -599,6 +602,8 @@ def figure(p, Y0):
     text = [[("ポイント）", {"bold": True})]] + p["points"]
     d.shape(FX + 372, Y0 + FH - 136, FW - 392, 120, "rect", fill=POINT_FILL, line=POINT_LINE, lw=1, text=text, size=11,
             font="Meiryo", color="000000", align="l", anchor="t", ins=(8, 5, 8, 5), name="吹き出し 要点")
+    # この方法が公式ドキュメントのどこに書かれているか（凡例の下、ポイントの箱の左）
+    doc_refs.ref_box(d, FX + 22, Y0 + FH - 16 - doc_refs.height(p["key"]), 336, p["key"])
     return d
 
 
